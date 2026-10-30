@@ -1,0 +1,7 @@
+﻿Bootstrap Icons star-fill.svg
+Source: https://icons.getbootstrap.com/icons/star-fill/
+Project: Bootstrap Icons, https://icons.getbootstrap.com/
+License: MIT License
+
+This project uses the star-fill SVG shape as the source for Media/marker_star.tga.
+The icon is rendered locally into a white transparent TGA for World of Warcraft texture use.

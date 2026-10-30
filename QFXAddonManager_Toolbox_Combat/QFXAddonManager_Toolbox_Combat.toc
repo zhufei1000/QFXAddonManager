@@ -1,0 +1,41 @@
+## Interface: 120005, 120007, 120100, 120105
+## Title: QFX Addon Manager Toolbox Combat Tools
+## Title-zhCN: QFX 插件管理中心小工具·战斗工具
+## Title-zhTW: QFX 插件管理中心小工具·戰鬥工具
+## Notes: Load-on-demand HUD, Mythic+ and self-marker tools with separate logical contexts.
+## Notes-zhCN: 按需加载界面、秘境与自身定位工具，各逻辑分组保持独立。
+## Notes-zhTW: 按需載入介面、秘境與自身定位工具，各邏輯分組保持獨立。
+## Author: Qunfeixuan
+## Version: 1.1.11
+## LoadOnDemand: 1
+## Dependencies: QFXAddonManager
+## IconTexture: Interface\AddOns\QFXAddonManager\Media\addon-fei.blp
+## X-QFX-Toolbox-Bundle: HudTools, MythicPlus, SelfMarker
+
+Bootstrap.lua
+HudTools\GCDHistory.lua
+HudTools\Libs\SpellData.lua
+HudTools\Libs\ItemData.lua
+HudTools\Libs\LibRangeCheck-3.0-QFX.lua
+HudTools\RangeToTarget.lua
+HudTools\PlayerStats.lua
+HudTools\Constants.lua
+HudTools\SecureActions.lua
+HudTools\RaidPanel.lua
+HudTools\RaidModule.lua
+MythicPlus\DungeonData.lua
+MythicPlus\MythicPlusTeleport.lua
+MythicPlus\MythicPlusIconOverlay.lua
+MythicPlus\MythicPlusTools.lua
+MythicPlus\KeystoneListEnhancements.lua
+MythicPlus\KeystoneExternalCompat.lua
+MythicPlus\MythicPlusKeystoneList.lua
+SelfMarker\Localization.lua
+SelfMarker\DB.lua
+SelfMarker\Position.lua
+SelfMarker\Media.lua
+SelfMarker\Marker.lua
+SelfMarker\GCD.lua
+SelfMarker\AttackRange.lua
+SelfMarker\OptionsFrame.lua
+SelfMarker\Core.lua

@@ -1,0 +1,163 @@
+-- All client-language dictionaries ship together in the
+-- main addon's Toolbox/Locale directory. The enUS dictionary also serves
+-- as the fallback for unknown client languages (Toolbox/Core/Locale.lua).
+-- Only the active manager language registers; changing it takes a UI reload.
+local ns = _G.QFXAddonManagerToolboxNS
+if not ns then return end
+local locale = ns.GetResolvedLocale and ns.GetResolvedLocale() or (GetLocale and GetLocale())
+if locale == "zhCN" or locale == "zhTW" then return end
+
+ns.RegisterLocale("enUS", {
+        ["CHATBAR_TAB_COMMON"] = "Common",
+        ["CHATBAR_TAB_INPUT"] = "Input Box",
+        ["CHATBAR_CHAT_BEHAVIOR"] = "Chat Shortcuts",
+        ["CHATBAR_STYLE_HELP"] = "Choose one look. Each look remembers its own size and spacing; changes apply immediately.",
+        ["CHATBAR_MOVE_HELP"] = "To move: unlock the bar, drag a button, then lock it again.",
+        ["CHATBAR_BUTTONS_HELP"] = "Pick a preset, then check the buttons you need. Presets only change visibility. Icon and text styles share one button set; color bars share another.",
+        ["CHATBAR_EDIT_BUTTONS"] = "Edit Buttons",
+        ["CHATBAR_EDIT_ORDER"] = "Edit Order",
+        ["CHATBAR_APPEARANCE_FINE_TUNING"] = "More Options",
+        ["CHATBAR_INPUT_FINE_TUNING"] = "Edge Offsets",
+        ["CHATBAR_RESET_STYLE_LAYOUT"] = "Reset Layout",
+        ["CHATBAR_RESET_STYLE_HELP"] = "Restore scale, dimensions, spacing, text offsets and input-box gap for this look. Button choices, order, colors and bar position are kept.",
+        ["The following modules are currently disabled. You can enable them in the addon manager's Qunfeixuan Tools list if needed:"] = "The following modules are currently disabled. You can enable them in the addon manager's Built-in Tools list if needed:",
+        ["Qunfeixuan Tools Notice"] = "Built-in Tools Notice",
+        ["The following plugins are disabled by default:"] = "The following addons have been disabled using the defaults:",
+        ["The following plugins are enabled by default:"] = "The following addons have been enabled using the defaults:",
+        ["A UI reload is required to fully apply these changes. Reload now?"] = "A UI reload is required to fully apply these changes. Reload now?",
+        ["Reload Now"] = "Reload Now",
+        ["WHISPER_HISTORY_PERSIST"] = "Save History",
+        ["WHISPER_HISTORY_PERSIST_DESC"] = "Saves messages at logout. When off, history is kept only for this session.",
+        ["CVar Presets, Combat Numbers, Lag Tolerance, and Map Entrances are enabled by default. Macro UI Enhancement and Merchant Page Expand are disabled by default."] = "CVar Presets, Combat Numbers, Lag Tolerance, and Map Entrances are enabled by default. Macro UI Enhancement and Merchant Page Expand are disabled by default.",
+
+        ["Keep Thousand Separators"] = "Keep thousand separators",
+
+        ["Lock Stats Frame"] = "Lock stats frame",
+        ["Name / Value Gap"] = "Name / Value Gap",
+        ["Name Alignment"] = "Name Alignment",
+        ["Value Alignment"] = "Value Alignment",
+        ["Center Align"] = "Center Align",
+        ["Alignment applies within each column. For a compact gap, use right-aligned names and left-aligned values."] = "Alignment applies within each column. For a compact gap, use right-aligned names and left-aligned values.",
+
+
+        ["This changes SpellQueueWindow, not your real network latency."] = "This changes the saved SpellQueueWindow value for the current specialization, not your real network latency.",
+        ["Current Spec Value"] = "Current",
+
+
+
+
+        ["Minimal Preset"] = "Minimal",
+        ["Common Preset"] = "Common",
+
+
+
+        ["While the chat box is open, press Tab to switch to the next chat type and Shift+Tab for the previous one; whisper keeps Blizzard's Tab target cycling."] = "While the chat box is open, press Tab to switch to the next available chat type and Shift+Tab for the previous one. Only usable targets are cycled: party, raid and instance need the matching group, channels must be joined. Whisper keeps Blizzard's Tab target cycling.",
+
+
+
+
+
+        ["Keystone Port Ready"] = "Ready",
+        ["Keystone Port Cooldown"] = "Cooling Down",
+        ["Shows your own keystone immediately and exchanges party keystones through WA-KeyStGrList."] = "Shows your own keystone immediately, retries party sync after joining, and also reads optional LibOpenRaid/LibKeystone data when available.",
+
+
+
+        -- Whisper History
+        ["WHISPER_HISTORY_TITLE"] = "Whisper History",
+        ["WHISPER_HISTORY_DESC"] = "Received whisper timeline with unread tracking, direct replies, and Battle.net support.",
+        ["WHISPER_HISTORY_WINDOW_TITLE"] = "Received Whispers",
+        ["WHISPER_HISTORY_EMPTY"] = "No received whispers yet.",
+        ["WHISPER_HISTORY_SAYS_TO_YOU"] = " says to you: ",
+        ["WHISPER_HISTORY_READ_TAG"] = "[Read]",
+        ["WHISPER_HISTORY_DATE_FORMAT"] = "%Y-%m-%d",
+        ["WHISPER_HISTORY_TIME_FORMAT"] = "%H:%M:%S",
+        ["WHISPER_HISTORY_UNREAD_COUNT"] = "%d unread",
+        ["WHISPER_HISTORY_TOTAL_COUNT"] = "%d messages",
+        ["WHISPER_HISTORY_LEFT_CLICK"] = "Left Click: Open whisper list",
+        ["WHISPER_HISTORY_RIGHT_CLICK"] = "Right Click: Mark all unread as read",
+        ["WHISPER_HISTORY_DRAG"] = "Drag: Move floating button",
+        ["WHISPER_HISTORY_DRAG_LOCKED"] = "Floating button is locked",
+        ["WHISPER_HISTORY_RESIZE_WINDOW"] = "Drag to resize the message window",
+        ["WHISPER_HISTORY_RESIZE_LOCKED"] = "Message window size is locked",
+        ["WHISPER_HISTORY_COMBAT_BLOCKED"] = "Whisper list cannot be opened in combat. Enable Open in combat in settings to allow it.",
+        ["WHISPER_HISTORY_MARK_ALL_READ_DONE"] = "All unread whispers marked as read.",
+        ["WHISPER_HISTORY_CLEARED"] = "Whisper history cleared.",
+        ["WHISPER_HISTORY_BN_PREFIX"] = "Battle.net",
+        ["WHISPER_HISTORY_BNET_REPLY_UNAVAILABLE"] = "Battle.net reply is unavailable on this client.",
+        ["WHISPER_HISTORY_CONFLICT"] = "The standalone QFXWhisper addon is still enabled. Disable or remove it, then reload the UI.",
+        ["WHISPER_HISTORY_DISABLED_COMMAND"] = "Enable Whisper History in the manager's Built-in Tools list before using this command.",
+        ["WHISPER_HISTORY_HELP_1"] = "/qfw or /qfxwhisper - toggle whisper list",
+        ["WHISPER_HISTORY_HELP_2"] = "/qfw read - mark all unread as read",
+        ["WHISPER_HISTORY_HELP_3"] = "/qfw clear - clear whisper history",
+        ["WHISPER_HISTORY_HELP_4"] = "/qfw reset - reset floating button and window positions",
+        ["WHISPER_HISTORY_POSITIONS_RESET"] = "Whisper button and window positions reset.",
+        ["WHISPER_HISTORY_CLEAR_CONFIRM"] = "Clear all saved whisper history? This cannot be undone.",
+        ["WHISPER_HISTORY_WINDOW_LOCKED"] = "Message window locked.",
+        ["WHISPER_HISTORY_WINDOW_UNLOCKED"] = "Message window unlocked.",
+        ["WHISPER_HISTORY_UNLOCK_WINDOW"] = "Unlock frame",
+        ["WHISPER_HISTORY_LOCK_WINDOW"] = "Lock Window",
+        ["WHISPER_HISTORY_TITLE_RIGHT_CLICK"] = "Right Click: Lock/Unlock message window",
+        ["WHISPER_HISTORY_WINDOW_DRAG_LOCKED"] = "Message window is locked",
+        ["WHISPER_HISTORY_WINDOW_DRAG_UNLOCKED"] = "Drag: Move message window",
+        ["WHISPER_HISTORY_TAB_BUTTON"] = "Button",
+        ["WHISPER_HISTORY_TAB_SOUND"] = "Sound",
+        ["WHISPER_HISTORY_TAB_WINDOW"] = "Window",
+        ["WHISPER_HISTORY_TAB_HISTORY"] = "History",
+        ["WHISPER_HISTORY_DISPLAY_MODE"] = "Display mode",
+        ["WHISPER_HISTORY_DISPLAY_ALWAYS"] = "Always show",
+        ["WHISPER_HISTORY_DISPLAY_UNREAD"] = "Unread Only",
+        ["WHISPER_HISTORY_LOCK_BUTTON"] = "Lock Button",
+        ["WHISPER_HISTORY_BUTTON_SCALE"] = "Button Scale",
+        ["WHISPER_HISTORY_BUTTON_ALPHA"] = "Button Opacity",
+        ["WHISPER_HISTORY_BUTTON_COLOR"] = "Button Color",
+        ["WHISPER_HISTORY_SOUND_ENABLE"] = "Sound Alert",
+        ["WHISPER_HISTORY_SOUND_ENABLE_DESC"] = "Plays once when a new normal or Battle.net whisper is received.",
+        ["WHISPER_HISTORY_SOUND_SELECT"] = "Alert sound",
+        ["WHISPER_HISTORY_SOUND_SELECT_DESC"] = "Sounds are supplied by the optional external LibSharedMedia-3.0 library.",
+        ["WHISPER_HISTORY_SOUND_DEFAULT"] = "Default Whisper",
+        ["WHISPER_HISTORY_SOUND_PREVIEW"] = "Preview sound",
+        ["WHISPER_HISTORY_SOUND_LSM_AVAILABLE"] = "LibSharedMedia-3.0 detected. Registered external sounds are available in the list.",
+        ["WHISPER_HISTORY_SOUND_LSM_MISSING"] = "LibSharedMedia-3.0 was not detected. The Blizzard default whisper sound remains available.",
+        ["WHISPER_HISTORY_ALLOW_COMBAT"] = "Open in combat",
+        ["WHISPER_HISTORY_DETACHED"] = "Detach Window",
+        ["WHISPER_HISTORY_AUTO_CLOSE"] = "Close on Mouseout",
+        ["WHISPER_HISTORY_AUTO_CLOSE_SECONDS"] = "Close Delay (s)",
+        ["WHISPER_HISTORY_WINDOW_COLOR"] = "Window Color",
+        ["WHISPER_HISTORY_BACKGROUND_ALPHA"] = "Background opacity",
+        ["WHISPER_HISTORY_FONT_SIZE"] = "Message font size",
+        ["WHISPER_HISTORY_READ_BRIGHTNESS"] = "Read Brightness",
+        ["WHISPER_HISTORY_MAX_MESSAGES"] = "History Limit",
+        ["WHISPER_HISTORY_MARK_ALL_READ"] = "Mark all read",
+        ["WHISPER_HISTORY_CLEAR"] = "Clear history",
+        ["WHISPER_HISTORY_RESET_POSITIONS"] = "Reset positions",
+        ["WHISPER_HISTORY_OPEN_WINDOW"] = "Open Whispers",
+        ["WHISPER_HISTORY_STATUS"] = "%d messages, %d unread",
+        ["WHISPER_HISTORY_COLOR_SOURCE"] = "Sender class color",
+        ["WHISPER_HISTORY_COLOR_PLAYER"] = "Player class color",
+        ["WHISPER_HISTORY_COLOR_ORIGINAL"] = "Original color",
+        ["WHISPER_HISTORY_ENABLE_FIRST"] = "Enable this module first.",
+        ["WHISPER_HISTORY_UNKNOWN"] = "Unknown",
+
+        ["Fade Duration Note"] = "Opacity updates every 0.2 seconds: 2 seconds uses 10 equal steps, 3 seconds uses 15; updates stop once hidden.",
+
+        -- Navigation categories
+    ["Clear Marker Short"] = "C",
+    ["Macro UI Enhancement"] = "Macro Window",
+    ["Apply Now"] = "Apply",
+    ["Reset to Recommended"] = "Use Recommended",
+    ["Reset Default Order"] = "Reset Order",
+    ["Reset Default Position"] = "Reset Position",
+    ["Reset Border Color"] = "Reset Color",
+    ["Import Text as Blacklist"] = "Import Never Sell",
+    ["Import Text as Whitelist"] = "Import Force Sell",
+    ["Follow Chat Bar Width"] = "Chat Bar Width",
+    ["Follow Chat Window Width"] = "Chat Window Width",
+    ["Keep Original Width"] = "Original Width",
+    ["Attach Edit Box to Chat Bar"] = "Attach Input Box",
+    ["Blizzard Action-Bar Square"] = "Action Bar",
+    ["Classic Native Buttons"] = "Blizzard Buttons",
+    ["NDui Thin Color Bars"] = "NDui Thin Bars",
+    ["Only when a Mythic+ key starts"] = "On M+ Start Only",
+})
+

@@ -1,0 +1,78 @@
+## Interface: 120005, 120007, 120100, 120105
+## Title: QFX Addon Manager
+## Title-zhCN: QFX 插件管理中心
+## Title-zhTW: QFX 插件管理中心
+## Notes: Manage installed addons with a lightweight QFX-style control center.
+## Notes-zhCN: 使用轻量 QFX 风格控制台管理已安装插件。
+## Notes-zhTW: 使用輕量 QFX 風格控制台管理已安裝插件。
+## Author: Qunfeixuan
+## Version: 1.1.11
+## X-Curse-Project-ID: 1773703
+## X-Website: https://github.com/zhufei1000/QFXAddonManager
+## SavedVariables: QFXAddonManagerDB, QFXAddonManagerToolboxDB, QFXToolBoxDB
+## LoadSavedVariablesFirst: 1
+## IconTexture: Interface\AddOns\QFXAddonManager\Media\addon-fei.blp
+## OptionalDeps: QFXWidgets, LibStub, LibDataBroker-1.1, LibDBIcon-1.0, Masque
+## X-QFX-Provides-Widgets: 51
+## X-QFX-Provides-Glow: 1
+
+Locale\enUS.lua
+Locale\zhCN.lua
+Locale\zhTW.lua
+
+Libs\QFXGlow.lua
+
+Core\DB.lua
+Core\API.lua
+Core\Registry.lua
+Core\Groups.lua
+Core\Modules.lua
+Core\Widgets.lua
+Core\Config.lua
+Core\Notices.lua
+Core\LegacyToolbox.lua
+Core\Scanner.lua
+Core\AddonModes.lua
+Core\ModeMaps.lua
+Core\AddonClasses.lua
+Core\Loader.lua
+Core\SharedMedia.lua
+Core\Integration.lua
+Core\Toolbox.lua
+
+Toolbox\Bootstrap.lua
+Toolbox\Core\Locale.lua
+Toolbox\Core\Compat.lua
+Toolbox\Core\Libs\LibStub\LibStub.lua
+Toolbox\Core\Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Toolbox\Core\Libs\LibDataBroker-1.1.lua
+Toolbox\Core\Libs\LibDBIcon-1.0.lua
+Toolbox\Core\Defaults.lua
+Toolbox\Core\ModuleCatalog.lua
+Toolbox\Core\Core.lua
+Toolbox\Core\GlowService.lua
+Toolbox\Core\GCDService.lua
+Toolbox\Core\Migrations.lua
+Toolbox\Core\Utils.lua
+Toolbox\Core\Modules\CombatNumbers.lua
+Toolbox\Core\Modules\MapEntrances.lua
+Toolbox\Core\Modules\LagTolerance.lua
+Toolbox\Core\Modules\ExternalStubs.lua
+Toolbox\Core\Modules\WhisperHistoryStub.lua
+Toolbox\Core\Modules\MacroEnhance.lua
+Toolbox\Initialize.lua
+Toolbox\Core\Libs\LibSharedMedia-3.0\LibSharedMedia-3.0.lua
+Toolbox\Locale\enUS.lua
+Toolbox\Locale\zhCN.lua
+Toolbox\Locale\zhTW.lua
+
+Core\Init.lua
+Core\Slash.lua
+
+Configs\Categories.lua
+Configs\Groups.lua
+Configs\KnownAddons.lua
+Configs\ProjectIcons.lua
+Configs\Titles.lua
+Configs\Modules.lua
+Configs\AddonDefaults.lua

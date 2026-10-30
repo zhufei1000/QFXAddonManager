@@ -1,0 +1,8 @@
+## Interface: 120005, 120007, 120100, 120105
+## Title: QFX Addon Manager GlowFallback
+## Author: Qunfeixuan
+## Version: 1.1.11
+## LoadOnDemand: 1
+## Dependencies: QFXAddonManager
+
+Libs\LibCustomGlow-1.0\LibCustomGlow-1.0.lua

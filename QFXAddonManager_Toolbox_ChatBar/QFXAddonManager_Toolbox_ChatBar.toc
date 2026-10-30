@@ -1,0 +1,21 @@
+## Interface: 120005, 120007, 120100, 120105
+## Title: QFX Addon Manager Toolbox Chat Bar
+## Title-zhCN: QFX 插件管理中心小工具·聊天条
+## Title-zhTW: QFX 插件管理中心小工具·聊天條
+## Notes: Load-on-demand toolbox module bundle for QFX Addon Manager.
+## Notes-zhCN: QFX 插件管理中心的按需加载小工具模块包。
+## Notes-zhTW: QFX 插件管理中心的按需載入小工具模組包。
+## Author: Qunfeixuan
+## Version: 1.1.11
+## LoadOnDemand: 1
+## Dependencies: QFXAddonManager
+## IconTexture: Interface\AddOns\QFXAddonManager\Media\addon-fei.blp
+## X-QFX-Toolbox-Bundle: ChatBar
+
+Bootstrap.lua
+ChatBar\ChatBarData.lua
+ChatBar\ChatBar.lua
+ChatBar\Core.lua
+ChatBar\UI.lua
+ChatBar\Module.lua
+Initialize.lua

@@ -1,0 +1,145 @@
+## Interface: 120005, 120007, 120100, 120105
+## Title: QFX Addon Manager Config
+## Title-zhCN: QFX 插件管理中心设置
+## Title-zhTW: QFX 插件管理中心設定
+## Notes: Load-on-demand manager window, settings host, and shared widget factory for QFX Addon Manager.
+## Notes-zhCN: QFX 插件管理中心的按需加载主窗口、设置宿主与共享控件工厂。
+## Notes-zhTW: QFX 插件管理中心的按需載入主視窗、設定宿主與共享控件工廠。
+## Author: Qunfeixuan
+## Version: 1.1.11
+## LoadOnDemand: 1
+## Dependencies: QFXAddonManager
+## IconTexture: Interface\AddOns\QFXAddonManager\Media\addon-fei.blp
+## X-QFX-Provides-Widgets: 51
+
+Libs\QFXWidgets.lua
+Bootstrap.lua
+Config\Factory.lua
+Config\Controls.lua
+Config\Navigation.lua
+Config\ManagerHost.lua
+Config\General.lua
+UI\Controls.lua
+UI\SearchBox.lua
+UI\CategoryList.lua
+UI\AddonList.lua
+UI\DetailPanel.lua
+UI\Toolbox.lua
+UI\ReloadPrompt.lua
+UI\AddonModes.lua
+UI\AddonClasses.lua
+UI\ModeMaps.lua
+UI\MainFrame.lua
+Initialize.lua
+
+Integration\Bootstrap.lua
+Integration\Presets.lua
+Integration\Adapters\Common.lua
+Integration\Adapters\QFXToolBox.lua
+Integration\Presets\QFXSkillAlerts.lua
+Integration\Adapters\HandyNotes.lua
+Integration\Adapters\QFXfocus.lua
+Integration\Adapters\Details.lua
+Integration\Adapters\DBM-Core.lua
+Integration\Adapters\BigWigs.lua
+Integration\Adapters\WeakAuras.lua
+Integration\Adapters\Plater.lua
+Integration\Adapters\OmniCD.lua
+Integration\Adapters\MythicDungeonTools.lua
+Integration\Adapters\RaiderIO.lua
+Integration\Adapters\Auctionator.lua
+Integration\Adapters\RareScanner.lua
+Integration\Adapters\Leatrix_Plus.lua
+Integration\Adapters\TomTom.lua
+Integration\Adapters\Cell.lua
+Integration\Adapters\PetStatusAlert.lua
+Integration\Adapters\QFXTip.lua
+Integration\Adapters\QFXSystemBar.lua
+Integration\Adapters\QFXMythicRankHUD.lua
+Integration\Adapters\QFXBeggar.lua
+Integration\Adapters\QFXSkillAlerts.lua
+Integration\Adapters\QFXTalents.lua
+Integration\Adapters\QfxUI_Installer.lua
+Integration\Adapters\InspectForEllesmereUI.lua
+Integration\Adapters\DialogueUI_MoveFrame.lua
+Integration\Adapters\AbilityTimeline_zhCN.lua
+Integration\Adapters\MultiCooldownByTimer.lua
+Integration\Adapters\QFX_SharedMedia.lua
+Integration\Adapters\AceSettings.lua
+Integration\Adapters\NativeSettings.lua
+Integration\Adapters\ThirdPartyCatalog.lua
+Integration\Adapters\BugGrabber.lua
+Integration\Adapters\Myslot.lua
+Integration\Adapters\WaypointUI.lua
+Integration\Adapters\DiGuaTimelineAudioHelper.lua
+Integration\Adapters\GroupFinderSettings.lua
+Integration\Adapters\LycheeGroup.lua
+Integration\Adapters\WorldQuestTabSettings.lua
+Integration\Adapters\QFXMinimapTools.lua
+Integration\Adapters\QFXWhisper.lua
+Integration\Adapters\QFXFlightCenterMinimap.lua
+Integration\Adapters\ProfileManager-qfx.lua
+Integration\Adapters\QFXMythicCeremony.lua
+Integration\Adapters\QFXSelfMarker.lua
+Integration\Adapters\QFXUnitframes.lua
+Integration\Adapters\QFXWidgets.lua
+Integration\Adapters\Bagnon.lua
+Integration\Adapters\Leatrix_Maps.lua
+Integration\Adapters\Pawn.lua
+Integration\Adapters\Platynator.lua
+Integration\Adapters\Simulationcraft.lua
+Integration\Adapters\GTFO.lua
+Integration\Adapters\AllTheThings.lua
+Integration\Adapters\RXPGuides.lua
+Integration\Adapters\Scrap.lua
+Integration\Adapters\MinimapButtonButton.lua
+Integration\Adapters\NorthernSkyRaidTools.lua
+Integration\Adapters\Bartender4.lua
+Integration\Adapters\KeystoneLoot.lua
+Integration\Adapters\Plumber.lua
+Integration\Adapters\SilverDragon.lua
+Integration\Adapters\HealBot.lua
+Integration\Adapters\MiniAuras.lua
+Integration\Adapters\MoveAny.lua
+Integration\Adapters\NovaInstanceTracker.lua
+Integration\Adapters\WorldQuestTracker.lua
+Integration\Adapters\BetterBlizzFrames.lua
+Integration\Adapters\HomeBound.lua
+Integration\Adapters\Prat-3.0.lua
+Integration\Adapters\TradeSkillMaster.lua
+Integration\Adapters\TidyPlates_ThreatPlates.lua
+Integration\Adapters\Gargul.lua
+Integration\Adapters\Decursive.lua
+Integration\Adapters\BetterFishing.lua
+Integration\Adapters\EnhanceQoL.lua
+Integration\Adapters\RCLootCouncil.lua
+Integration\Adapters\CooldownManagerCentered.lua
+Integration\Adapters\EXBoss.lua
+Integration\Adapters\AztarecHelper.lua
+Integration\Adapters\MaxDps.lua
+Integration\Adapters\PremadeGroupsFilter.lua
+Integration\Adapters\Titan.lua
+Integration\Adapters\ThreatClassic2.lua
+Integration\Adapters\Attune.lua
+Integration\Adapters\MyusKnowledgePointsTracker.lua
+Integration\Adapters\SexyMap.lua
+Integration\Adapters\Altoholic.lua
+Integration\Adapters\WIM.lua
+Integration\Adapters\Capping.lua
+Integration\Adapters\VuhDo.lua
+Integration\Adapters\DecorVendor.lua
+Integration\Adapters\AdvancedInterfaceOptions.lua
+Integration\Adapters\BetterBlizzPlates.lua
+Integration\Adapters\ExwindCore.lua
+Integration\Adapters\Atlas.lua
+Integration\Adapters\CraftSim.lua
+Integration\Adapters\sArena_Reloaded.lua
+Integration\Adapters\Narcissus.lua
+Integration\Adapters\DandersFrames.lua
+Integration\Adapters\ChonkyCharacterSheet.lua
+Integration\Adapters\AngryKeystones.lua
+Integration\Adapters\SimpleItemLevel.lua
+Integration\Adapters\OPie.lua
+Integration\Adapters\Leatrix_Sounds.lua
+Integration\Adapters\SpeedyAutoLoot.lua
+Integration\Initialize.lua
