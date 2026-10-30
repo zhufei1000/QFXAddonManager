@@ -6,7 +6,7 @@
 ## Notes-zhCN: 按需加载界面、秘境与自身定位工具，各逻辑分组保持独立。
 ## Notes-zhTW: 按需載入介面、秘境與自身定位工具，各邏輯分組保持獨立。
 ## Author: Qunfeixuan
-## Version: 1.1.11
+## Version: 1.1.12
 ## LoadOnDemand: 1
 ## Dependencies: QFXAddonManager
 ## IconTexture: Interface\AddOns\QFXAddonManager\Media\addon-fei.blp
