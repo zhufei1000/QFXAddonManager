@@ -994,7 +994,12 @@ local function RebuildDisplay()
     local f = EnsureFrame()
     ApplyFrameSettings()
     local list = BuildDisplayList()
-    local count = math.max(1, #list)
+    local count = #list
+    if count == 0 then
+        StopStatusTicker()
+        f:Hide()
+        return
+    end
     local frameHeight = GetFrameHeight(count)
     if lastFrameHeight ~= frameHeight then
         f:SetHeight(frameHeight)
@@ -1004,20 +1009,8 @@ local function RebuildDisplay()
         previewing and (L("Party Keystone List") .. " - " .. L("Preview")) or L("Party Keystone List"))
     ApplyLockVisualState()
 
-    if #list == 0 then
-        local row = rows[1] or CreateRow(f, 1)
-        row.data = nil
-        row:SetPoint("TOPLEFT", f, "TOPLEFT", FRAME_PAD, GetRowStartY())
-        row.icon:SetTexture(134400)
-        row.levelText:SetText("")
-        SetCachedText(row.ownerText, "_qfxText", L("Keystone"))
-        SetCachedText(row.dungeonText, "_qfxText", GoldText(L("No keystone found.")))
-        SetCachedText(row.statusText, "_qfxText", "")
-        row:Show()
-    else
-        for i, data in ipairs(list) do
-            ConfigureRow(rows[i] or CreateRow(f, i), data, i)
-        end
+    for i, data in ipairs(list) do
+        ConfigureRow(rows[i] or CreateRow(f, i), data, i)
     end
 
     for i = count + 1, #rows do

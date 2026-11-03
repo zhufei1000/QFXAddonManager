@@ -1,4 +1,4 @@
-QFXAddonManager v1.1.12
+QFXAddonManager v1.1.13
 
 本体包含主包 QFXAddonManager 和五个按需子包：QFXAddonManager_Config、QFXAddonManager_Toolbox_Daily、QFXAddonManager_Toolbox_Combat、QFXAddonManager_Toolbox_ChatBar、QFXAddonManager_Libraries_GlowFallback。根目录 QFX_SharedMedia 是必须一起保留的纯素材目录，无独立插件入口。
 
