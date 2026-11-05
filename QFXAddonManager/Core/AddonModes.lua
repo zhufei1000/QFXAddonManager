@@ -1,6 +1,15 @@
 local _, QFXAM = ...
 local API, L = QFXAM.API, QFXAM.L
 
+-- Forever has no Mythic+ season. Keep the internal mode key and its saved
+-- exclusion list, but present it as the dungeon mode on that client.
+if QFXAM.IsForever and QFXAM.IsForever() then
+    L.MODE_MYTHIC = L.MODE_DUNGEON or L.MODE_MYTHIC
+    L.MODE_SELECT_MYTHIC = L.MODE_SELECT_DUNGEON or L.MODE_SELECT_MYTHIC
+    L.MODE_MYTHIC_EXCLUDED = L.MODE_DUNGEON_EXCLUDED or L.MODE_MYTHIC_EXCLUDED
+    if L.CATEGORY_RAID_TIP_FOREVER then L.CATEGORY_RAID_TIP = L.CATEGORY_RAID_TIP_FOREVER end
+end
+
 local function Settings()
     local db = QFXAM.db
     if not db then return end

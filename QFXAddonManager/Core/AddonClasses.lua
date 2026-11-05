@@ -1,8 +1,14 @@
 local _, AM = ...
 local API, L = AM.API, AM.L
+-- Forever is a Classic-era game type: only the nine original classes exist.
+-- Keep the full Retail order for every other client.
+local RETAIL_CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "DEATHKNIGHT",
+    "SHAMAN", "MAGE", "WARLOCK", "MONK", "DRUID", "DEMONHUNTER", "EVOKER" }
+local FOREVER_CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST",
+    "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
+local classOrder = (AM.IsForever and AM.IsForever()) and FOREVER_CLASS_ORDER or RETAIL_CLASS_ORDER
 local classes = {}
-for _, token in ipairs({ "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "DEATHKNIGHT",
-    "SHAMAN", "MAGE", "WARLOCK", "MONK", "DRUID", "DEMONHUNTER", "EVOKER" }) do
+for _, token in ipairs(classOrder) do
     classes[#classes + 1] = { key = token, label = L["CLASS_" .. token],
         atlas = "classicon-" .. token:lower(), texture = "Interface\\Icons\\INV_Misc_QuestionMark" }
 end

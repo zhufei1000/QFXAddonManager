@@ -74,3 +74,29 @@ end
 function API.OpenReloadDialog()
     if ReloadUI then ReloadUI() end
 end
+
+-- Interface number is the only reliable way to tell the Forever (Camelot)
+-- client from Retail: WOW_PROJECT_ID still reports MAINLINE there. Treat
+-- 16000-19999 as the "Forever" family and keep 12.x checks working for it.
+local function ReadInterfaceNumber()
+    if type(_G.GetBuildInfo) ~= "function" then return nil end
+    local ok, _, _, _, interfaceNumber = pcall(_G.GetBuildInfo)
+    if ok then return tonumber(interfaceNumber) end
+    return nil
+end
+
+function QFXAM.GetInterfaceNumber()
+    return ReadInterfaceNumber()
+end
+
+function QFXAM.IsForever()
+    local interfaceNumber = ReadInterfaceNumber()
+    return interfaceNumber ~= nil and interfaceNumber >= 16000 and interfaceNumber < 20000
+end
+
+function QFXAM.IsRetail12x()
+    local interfaceNumber = ReadInterfaceNumber()
+    if interfaceNumber == nil then return false end
+    return (interfaceNumber >= 120000 and interfaceNumber < 130000)
+        or (interfaceNumber >= 16000 and interfaceNumber < 20000)
+end

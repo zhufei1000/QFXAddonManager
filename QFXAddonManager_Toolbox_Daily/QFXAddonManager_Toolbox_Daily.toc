@@ -1,4 +1,4 @@
-## Interface: 120005, 120007, 120100, 120105
+## Interface: 120005, 120007, 120100, 120105, 16001
 ## Title: QFX Addon Manager Toolbox Daily Tools
 ## Title-zhCN: QFX 插件管理中心小工具·日常工具
 ## Title-zhTW: QFX 插件管理中心小工具·日常工具
@@ -6,7 +6,7 @@
 ## Notes-zhCN: 按需加载日常工具，各逻辑分组独立初始化。
 ## Notes-zhTW: 按需載入日常工具，各邏輯分組獨立初始化。
 ## Author: Qunfeixuan
-## Version: 1.1.13
+## Version: 1.1.14
 ## LoadOnDemand: 1
 ## Dependencies: QFXAddonManager
 ## IconTexture: Interface\AddOns\QFXAddonManager\Media\addon-fei.blp

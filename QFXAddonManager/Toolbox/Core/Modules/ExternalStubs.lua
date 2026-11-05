@@ -2,6 +2,23 @@ local _, manager = ...
 manager.ToolboxRuntime:AddFile("Core", function(...)
 local _, ns = ...
 
+local IS_FOREVER = false
+if ns.Compat and type(ns.Compat.IsForever) == "function" then
+    local ok, forever = pcall(ns.Compat.IsForever)
+    IS_FOREVER = ok and forever == true
+elseif type(manager.IsForever) == "function" then
+    IS_FOREVER = manager.IsForever() == true
+end
+
+-- Mythic+ tools and the Adventure Journal Sets tab do not exist in the
+-- Classic-era Forever client. Skip registration entirely so old saved
+-- switches cannot load their bundles or create empty cards there.
+local FOREVER_HIDDEN = {
+    mythic_plus_keystone_list = true,
+    mythic_plus_tools = true,
+    set_viewer = true,
+}
+
 -- Each entry maps a module key to its load-on-demand bundle addon. The stub
 -- below keeps the switch and settings entry available while the bundle is not
 -- loaded; enabling the module (or opening its page) pulls the addon in.
@@ -155,7 +172,9 @@ local function BuildStub(module)
 end
 
 for _, module in ipairs(EXTERNAL_MODULES) do
-    ns.RegisterModule(module.key, BuildStub(module))
+    if not (IS_FOREVER and FOREVER_HIDDEN[module.key]) then
+        ns.RegisterModule(module.key, BuildStub(module))
+    end
 end
 
 end)

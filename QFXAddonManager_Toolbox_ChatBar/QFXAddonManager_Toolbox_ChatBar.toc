@@ -1,4 +1,4 @@
-## Interface: 120005, 120007, 120100, 120105
+## Interface: 120005, 120007, 120100, 120105, 16001
 ## Title: QFX Addon Manager Toolbox Chat Bar
 ## Title-zhCN: QFX 插件管理中心小工具·聊天条
 ## Title-zhTW: QFX 插件管理中心小工具·聊天條
@@ -6,7 +6,7 @@
 ## Notes-zhCN: QFX 插件管理中心的按需加载小工具模块包。
 ## Notes-zhTW: QFX 插件管理中心的按需載入小工具模組包。
 ## Author: Qunfeixuan
-## Version: 1.1.13
+## Version: 1.1.14
 ## LoadOnDemand: 1
 ## Dependencies: QFXAddonManager
 ## IconTexture: Interface\AddOns\QFXAddonManager\Media\addon-fei.blp

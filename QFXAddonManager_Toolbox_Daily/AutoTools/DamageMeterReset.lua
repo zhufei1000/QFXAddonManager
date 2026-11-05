@@ -6,6 +6,12 @@ if not ns then return end
 local KEY = "damage_meter_reset"
 local mod = {}
 
+local IS_FOREVER = false
+if ns.Compat and type(ns.Compat.IsForever) == "function" then
+    local ok, forever = pcall(ns.Compat.IsForever)
+    IS_FOREVER = ok and forever == true
+end
+
 -- 进本后等待实例信息稳定再提示；大秘境开始会再触发一次，用冷却避免连续打扰。
 local REPEAT_COOLDOWN = 30
 
@@ -42,10 +48,12 @@ local EVENTS = {
     "ZONE_CHANGED_NEW_AREA",
     "ZONE_CHANGED",
     "ZONE_CHANGED_INDOORS",
-    "CHALLENGE_MODE_START",
-    "CHALLENGE_MODE_RESET",
     "PLAYER_REGEN_ENABLED",
 }
+if not IS_FOREVER then
+    EVENTS[#EVENTS + 1] = "CHALLENGE_MODE_START"
+    EVENTS[#EVENTS + 1] = "CHALLENGE_MODE_RESET"
+end
 
 local function L(key)
     if ns.Util and ns.Util.L then return ns.Util.L(key) end
@@ -162,6 +170,7 @@ end
 -- 普通 / 英雄五人本不受影响，进门照常提示。
 -- 之所以只能压到「史诗难度」这一层：进门那一刻客户端分不出史诗本和大秘境，两者都是难度 23。
 local function WaitsForKeystone(db, snapshot)
+    if IS_FOREVER then return false end
     return db.dungeonKeystoneOnly == true
         and snapshot ~= nil
         and snapshot.instanceType == "party"
@@ -171,6 +180,7 @@ end
 -- 钥石启动时的准入。这个选项本身就是「我要大秘境」的表达，
 -- 所以勾了它就不再要求史诗难度框，避免两个开关互相打架。
 local function KeystoneAllowed(db)
+    if IS_FOREVER then return false end
     if db.dungeons == false then return false end
     if db.dungeonKeystoneOnly == true then return true end
     return DifficultyAllowed(db, "party", MYTHIC_KEYSTONE_DIFFICULTY)
@@ -348,11 +358,11 @@ local function ShowDialog()
     if alwaysCheck then alwaysCheck:SetChecked(db.mode == "auto") end
     if quietCheck then quietCheck:SetChecked(db.quiet ~= true) end
     if keystoneCheck then
-        if isParty then
+        if isParty and not IS_FOREVER then
             keystoneCheck:SetChecked(db.dungeonKeystoneOnly == true)
             keystoneCheck:Show()
         else
-            -- 团本没有大秘境概念，藏起来但不影响布局
+            -- 团本没有大秘境概念；Forever 也没有钥石，藏起来但不影响布局
             keystoneCheck:Hide()
         end
     end
@@ -611,6 +621,9 @@ local function StatusLine(db)
     if db.requireGroup and not Grouped() then
         return L("Waiting: solo play is ignored while \"Only while grouped\" is on.")
     end
+    if IS_FOREVER then
+        return L("Ready. The next matching instance entry will trigger the reset.")
+    end
     return L("Ready. The next matching entry, or a Mythic+ key start, will trigger the reset.")
 end
 
@@ -686,7 +699,8 @@ ns.RegisterModule(KEY, {
                         getValue = function() return db.dungeons ~= false end,
                         setValue = function(v) db.dungeons = v and true or false end,
                         enabled = EnabledRule,
-                        note = ui.L("Trigger when entering a 5-player dungeon, including Mythic+."),
+                        note = IS_FOREVER and ui.L("Trigger when entering a 5-player dungeon.")
+                            or ui.L("Trigger when entering a 5-player dungeon, including Mythic+."),
                     },
                     {
                         label = ui.L("Raids"),
@@ -700,28 +714,35 @@ ns.RegisterModule(KEY, {
                 scope:Text(ui.L("Dungeon difficulty"), ui.Colors.muted, 22)
                 local dungeonItems = {}
                 for _, difficultyKey in ipairs(DUNGEON_DIFFICULTY_ORDER) do
-                    local item = DifficultyItem(db, "party", difficultyKey, DungeonRule)
-                    item.note = ui.L("Untick to skip this difficulty.")
-                    dungeonItems[#dungeonItems + 1] = item
+                    if not (IS_FOREVER and difficultyKey == "mythic") then
+                        local item = DifficultyItem(db, "party", difficultyKey, DungeonRule)
+                        item.note = ui.L("Untick to skip this difficulty.")
+                        dungeonItems[#dungeonItems + 1] = item
+                    end
                 end
-                scope:CheckGrid(dungeonItems, { columns = 3 })
-                scope:Check(ui.L("Only when a Mythic+ key starts"), function()
-                    return db.dungeonKeystoneOnly == true
-                end, function(v)
-                    db.dungeonKeystoneOnly = v and true or false
-                end, ui.L("Entering a Mythic dungeon stays quiet until a keystone starts the run. Normal and Heroic entries still prompt."), {
-                    enabled = DungeonRule,
-                })
+                scope:CheckGrid(dungeonItems, { columns = IS_FOREVER and 2 or 3 })
+                if not IS_FOREVER then
+                    scope:Check(ui.L("Only when a Mythic+ key starts"), function()
+                        return db.dungeonKeystoneOnly == true
+                    end, function(v)
+                        db.dungeonKeystoneOnly = v and true or false
+                    end, ui.L("Entering a Mythic dungeon stays quiet until a keystone starts the run. Normal and Heroic entries still prompt."), {
+                        enabled = DungeonRule,
+                    })
+                end
 
                 scope:Text(ui.L("Raid difficulty"), ui.Colors.muted, 22)
                 local raidItems = {}
-                for _, difficultyKey in ipairs(RAID_DIFFICULTY_ORDER) do
+                local raidOrder = IS_FOREVER and { "normal" } or RAID_DIFFICULTY_ORDER
+                for _, difficultyKey in ipairs(raidOrder) do
                     local item = DifficultyItem(db, "raid", difficultyKey, RaidRule)
                     item.note = ui.L("Untick to skip this difficulty.")
                     raidItems[#raidItems + 1] = item
                 end
-                scope:CheckGrid(raidItems, { columns = 4 })
-                scope:Text(ui.L("Mythic difficulty needs a full group; untick it if you only run Normal or Heroic raids."), ui.Colors.muted, 22)
+                scope:CheckGrid(raidItems, { columns = IS_FOREVER and 1 or 4 })
+                if not IS_FOREVER then
+                    scope:Text(ui.L("Mythic difficulty needs a full group; untick it if you only run Normal or Heroic raids."), ui.Colors.muted, 22)
+                end
                 page:AddSection(scope)
 
                 local behavior = page:NewSection(ui.L("Behavior"))
@@ -735,7 +756,9 @@ ns.RegisterModule(KEY, {
                     enabled = EnabledRule,
                     note = ui.L("Wait this long after entering so instance data is stable."),
                 })
-                behavior:Text(ui.L("Starting a keystone also triggers a reset, but not within 30 seconds of entering the same dungeon."), ui.Colors.muted, 24)
+                if not IS_FOREVER then
+                    behavior:Text(ui.L("Starting a keystone also triggers a reset, but not within 30 seconds of entering the same dungeon."), ui.Colors.muted, 24)
+                end
                 behavior:ButtonRow({
                     {
                         text = ui.L("Reset now"),

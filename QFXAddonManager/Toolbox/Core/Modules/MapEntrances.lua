@@ -4,6 +4,12 @@ local _, ns = ...
 
 local KEY = "map_entrances"
 
+local IS_FOREVER = false
+if ns.Compat and type(ns.Compat.IsForever) == "function" then
+    local ok, forever = pcall(ns.Compat.IsForever)
+    IS_FOREVER = ok and forever == true
+end
+
 local CVARS = {
     delve = "showDelveEntrancesOnMap",
     dungeon = "showDungeonEntrancesOnMap",
@@ -35,9 +41,11 @@ local function SnapshotClientCVars(db)
     if not db then return end
     if type(db.clientSnapshot) == "table" then return end
     local snap = {}
-    for _, name in pairs(CVARS) do
-        local value = GetCVar(name)
-        if value ~= nil and value ~= "?" then snap[name] = tostring(value) end
+    for key, name in pairs(CVARS) do
+        if not (IS_FOREVER and key == "delve") then
+            local value = GetCVar(name)
+            if value ~= nil and value ~= "?" then snap[name] = tostring(value) end
+        end
     end
     db.clientSnapshot = snap
 end
@@ -55,13 +63,16 @@ end
 local function ApplyAll(db)
     if not db or not db.enabled then return end
 
-    SetCVar(CVARS.delve, db.showDelveEntrances ~= false)
+    if not IS_FOREVER then
+        SetCVar(CVARS.delve, db.showDelveEntrances ~= false)
+    end
     SetCVar(CVARS.dungeon, db.showDungeonEntrances ~= false)
 end
 
 ns.RegisterModule(KEY, {
     titleKey = "Map Entrances",
-    descKey = "Keep delve and dungeon entrances visible on the world map.",
+    descKey = IS_FOREVER and "Show dungeon entrances on the world map."
+        or "Keep delve and dungeon entrances visible on the world map.",
     defaults = ns.GetModuleDefaults(KEY),
     OnEnable = function(info, db)
         SnapshotClientCVars(db)
@@ -81,8 +92,9 @@ ns.RegisterModule(KEY, {
                     ns.SetModuleEnabled(KEY, value)
                 end, ui.L("When enabled, the selected entrance filters are applied automatically at login."))
                 local filters = basic
-                filters:CheckGrid({
-                    {
+                local items = {}
+                if not IS_FOREVER then
+                    items[#items + 1] = {
                         label = ui.L("Show Delve Entrances"),
                         getValue = function() return db.showDelveEntrances ~= false end,
                         setValue = function(value)
@@ -90,17 +102,18 @@ ns.RegisterModule(KEY, {
                             ApplyAll(db)
                         end,
                         note = ui.L("Controls delve entrance pins on the world map."),
-                    },
-                    {
-                        label = ui.L("Show Dungeon Entrances"),
-                        getValue = function() return db.showDungeonEntrances ~= false end,
-                        setValue = function(value)
-                            db.showDungeonEntrances = value and true or false
-                            ApplyAll(db)
-                        end,
-                        note = ui.L("Controls dungeon entrance pins on the world map."),
-                    },
-                }, { columns = 2 })
+                    }
+                end
+                items[#items + 1] = {
+                    label = ui.L("Show Dungeon Entrances"),
+                    getValue = function() return db.showDungeonEntrances ~= false end,
+                    setValue = function(value)
+                        db.showDungeonEntrances = value and true or false
+                        ApplyAll(db)
+                    end,
+                    note = ui.L("Controls dungeon entrance pins on the world map."),
+                }
+                filters:CheckGrid(items, { columns = IS_FOREVER and 1 or 2 })
                 page:AddSection(filters)
 
 

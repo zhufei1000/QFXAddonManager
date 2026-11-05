@@ -4,7 +4,11 @@ AM.ModeMaps = M
 local order = { "mythic", "raid", "pvp", "global" }
 local valid = { mythic = true, raid = true, pvp = true, global = true }
 -- UiMap IDs (not challenge-mode IDs); additional floors share one default row.
-local mythicDefaults = {
+-- Forever uses the Classic-era Map table IDs, so keep separate presets instead
+-- of feeding modern season IDs to the reminder matcher.
+local FOREVER = AM.IsForever and AM.IsForever() or false
+
+local retailMythicDefaults = {
     { 1004, { 1004 }, "Kings' Rest", "诸王之眠", "諸王之眠" },
     { 1038, { 1038, 1043 }, "Temple of Sethraliss", "塞塔里斯神庙", "瑟沙利斯神廟" },
     { 2094, { 2094, 2095 }, "Ruby Life Pools", "红玉新生法池", "晶紅生命之池" },
@@ -14,11 +18,28 @@ local mythicDefaults = {
     { 2433, { 2433, 2434, 2435 }, "Murder Row", "密谋小径", "兇殺路" },
     { 2588, { 2588, 2589, 2590 }, "Altar of Fangs", "毒牙祭坛", "毒牙祭壇" },
 }
-local raidDefaults = {
+local foreverMythicDefaults = {
+    { 230, { 230 }, "Blackrock Depths", "黑石深渊", "黑石深淵" },
+    { 229, { 229 }, "Blackrock Spire", "黑石塔", "黑石塔" },
+    { 429, { 429 }, "Dire Maul", "厄运之槌", "厄運之槌" },
+    { 329, { 329 }, "Stratholme", "斯坦索姆", "斯坦索姆" },
+    { 289, { 289 }, "Scholomance", "通灵学院", "通靈學院" },
+    { 109, { 109 }, "Sunken Temple", "沉没的神庙", "沉沒的神廟" },
+    { 349, { 349 }, "Maraudon", "玛拉顿", "瑪拉頓" },
+    { 209, { 209 }, "Zul'Farrak", "祖尔法拉克", "祖爾法拉克" },
+}
+local retailRaidDefaults = {
     { 2632, "The Tidebound Grotto", "潮缚石窟", "浪縛岩窟" },
     { 2606, "The Venomous Abyss", "烈毒之渊", "劇毒深淵" },
     { 2669, "The Unbinding of Kith'ix", "The Unbinding of Kith'ix", "The Unbinding of Kith'ix" },
 }
+local foreverRaidDefaults = {
+    { 409, "Molten Core", "熔火之心", "熔火之心" },
+    { 469, "Blackwing Lair", "黑翼之巢", "黑翼之巢" },
+    { 533, "Naxxramas", "纳克萨玛斯", "納克薩瑪斯" },
+}
+local mythicDefaults = FOREVER and foreverMythicDefaults or retailMythicDefaults
+local raidDefaults = FOREVER and foreverRaidDefaults or retailRaidDefaults
 
 local function Plain(value)
     return not (issecretvalue and issecretvalue(value))

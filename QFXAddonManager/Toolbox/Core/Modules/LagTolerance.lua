@@ -6,6 +6,12 @@ local KEY = "lag_tolerance"
 local mod = {}
 local CVAR = "SpellQueueWindow"
 
+local IS_FOREVER = false
+if ns.Compat and type(ns.Compat.IsForever) == "function" then
+    local ok, forever = pcall(ns.Compat.IsForever)
+    IS_FOREVER = ok and forever == true
+end
+
 local function L(key)
     return ns.L and ns.L(key) or key
 end
@@ -52,6 +58,15 @@ local function GetCurrentSpecID()
     return nil
 end
 
+-- Forever has Classic talent trees, not the modern specialization API. Use a
+-- single per-character bucket there so the tool still saves and applies a value.
+local function GetCurrentSpecKey()
+    local specID = GetCurrentSpecID()
+    if specID then return tostring(specID) end
+    if IS_FOREVER then return "classic" end
+    return nil
+end
+
 local function GetSpecValue(db, specID)
     EnsureClientDefaults(db)
     if not specID then return ReadCurrentCVarValue(400) end
@@ -77,11 +92,11 @@ end
 local function Apply(db)
     EnsureClientDefaults(db)
     if not db or not db.enabled then return end
-    local specID = GetCurrentSpecID()
-    if not specID then return end
+    local key = GetCurrentSpecKey()
+    if not key then return end
     -- 只读不写：该专精没有保存值时尊重用户当前客户端容限，只有保存过数值才强制应用。
     -- Clamp 收敛在 SetCVarSafe 内做一次即可。
-    local saved = db.specs[tostring(specID)]
+    local saved = db.specs[key]
     if saved == nil then
         return
     end
@@ -238,9 +253,10 @@ local function BuildAllClassSpecInputs(section, db, ui)
     end
 end
 
-ns.RegisterModule(KEY, {
+local moduleInfo = {
     titleKey = "Lag Tolerance",
-    descKey = "Read the client's SpellQueueWindow without changing it; a specialization is enforced only after you save a value for it.",
+    descKey = IS_FOREVER and "Reads the client's SpellQueueWindow. Applies only after you save a value."
+        or "Read the client's SpellQueueWindow without changing it; a specialization is enforced only after you save a value for it.",
     defaults = ns.GetModuleDefaults(KEY),
     OnInitialize = function(info, db) mod:OnInitialize(db) end,
     OnEnable = function(info, db) mod:OnEnable(db) end,
@@ -256,22 +272,25 @@ ns.RegisterModule(KEY, {
                     { label = ui.L("Enable"), getValue = function() return db.enabled end, setValue = function(v) ns.SetModuleEnabled(KEY, v) end, note = ui.L("This changes SpellQueueWindow, not your real network latency.") },
                 }, { columns = 2 })
                 s:EditBox(ui.L("Current Spec Value"), function()
-                    local specID = GetCurrentSpecID()
-                    return tostring(specID and GetSpecValue(db, specID) or ReadCurrentCVarValue(400))
+                    local key = GetCurrentSpecKey()
+                    return tostring(key and GetSpecValue(db, key) or ReadCurrentCVarValue(400))
                 end, function(text)
-                    local specID = GetCurrentSpecID()
-                    if specID then SetSpecValue(db, specID, text) end
+                    local key = GetCurrentSpecKey()
+                    if key then SetSpecValue(db, key, text) end
                     ns.ApplyModule(KEY)
-                end, 118, 74, { note = ui.L("Saving a value takes over this specialization; use the Specializations tab reset to stop managing it.") })
-                s:ButtonRow({
+                end, 118, 74, { note = not IS_FOREVER and ui.L("Saving a value takes over this specialization; use the Specializations tab reset to stop managing it.") or nil })
+                local buttons = {
                     { text = ui.L("Apply Now"), width = 92, onClick = function() Apply(db); ui.Refresh() end },
-                    { text = ui.L("Set Current Spec"), width = 126, onClick = function()
-                        local specID = GetCurrentSpecID()
-                        if specID then SetSpecValue(db, specID, ReadCurrentCVarValue(400)) end
+                }
+                if not IS_FOREVER then
+                    buttons[#buttons + 1] = { text = ui.L("Set Current Spec"), width = 126, onClick = function()
+                        local key = GetCurrentSpecKey()
+                        if key then SetSpecValue(db, key, ReadCurrentCVarValue(400)) end
                         ns.ApplyModule(KEY)
                         ui.Refresh()
-                    end },
-                })
+                    end }
+                end
+                s:ButtonRow(buttons)
                 page:AddSection(s)
 
 
@@ -316,6 +335,12 @@ ns.RegisterModule(KEY, {
             end,
         },
     },
-})
+}
+
+if IS_FOREVER then
+    -- No modern specializations: keep only the basic value page.
+    table.remove(moduleInfo.tabs, 2)
+end
+ns.RegisterModule(KEY, moduleInfo)
 
 end)

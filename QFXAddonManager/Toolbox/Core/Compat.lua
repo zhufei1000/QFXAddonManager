@@ -153,19 +153,32 @@ function Compat.GetInterfaceNumber(fallback)
     return interfaceNumber or fallback
 end
 
+-- The Forever (Camelot) client uses the 12.1.5 UI/API family but reports
+-- Interface 16001; WOW_PROJECT_ID still says MAINLINE. Keep all 12.x feature
+-- gates working there and detect the client through GetBuildInfo instead.
+function Compat.IsForever()
+    if type(manager.IsForever) == "function" then return manager.IsForever() == true end
+    local interfaceNumber = Compat.GetInterfaceNumber(0)
+    return interfaceNumber >= 16000 and interfaceNumber < 20000
+end
+
 function Compat.IsRetail12x()
     local interfaceNumber = Compat.GetInterfaceNumber(0)
-    return interfaceNumber >= 120000 and interfaceNumber < 130000
+    return (interfaceNumber >= 120000 and interfaceNumber < 130000)
+        or (interfaceNumber >= 16000 and interfaceNumber < 20000)
 end
 
 function Compat.IsRetail1207OrNewer()
     local interfaceNumber = Compat.GetInterfaceNumber(0)
-    return interfaceNumber >= 120007 and interfaceNumber < 130000
+    return (interfaceNumber >= 120007 and interfaceNumber < 130000)
+        or (interfaceNumber >= 16000 and interfaceNumber < 20000)
 end
 
 function Compat.IsSupportedRetailInterface()
     local interfaceNumber = Compat.GetInterfaceNumber(0)
-    return interfaceNumber == 120005 or interfaceNumber == 120007 or interfaceNumber == 120100
+    return interfaceNumber == 120005 or interfaceNumber == 120007
+        or interfaceNumber == 120100 or interfaceNumber == 120105
+        or (interfaceNumber >= 16000 and interfaceNumber < 20000)
 end
 
 function Compat.GetCVar(name, fallback)

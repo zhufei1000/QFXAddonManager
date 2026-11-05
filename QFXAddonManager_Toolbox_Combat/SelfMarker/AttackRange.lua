@@ -96,6 +96,31 @@ local SPEC_RANGE_PROBES = {
 
 AttackRange.SPEC_RANGE_PROBES = SPEC_RANGE_PROBES
 
+-- Forever uses Classic talent trees, so GetSpecialization is nil. Pick probes
+-- from the player's class (and druid form) instead of a specialization ID.
+local IS_FOREVER = false
+local toolboxNS = _G.QFXAddonManagerToolboxNS
+if toolboxNS and toolboxNS.Compat and type(toolboxNS.Compat.IsForever) == "function" then
+    local ok, forever = pcall(toolboxNS.Compat.IsForever)
+    IS_FOREVER = ok and forever == true
+end
+-- Max-rank Classic IDs (a level-60 spellbook no longer carries rank 1).
+local CLASSIC_CLASS_PROBES = {
+    WARRIOR = { 25286, 11578 },  -- Heroic Strike, Charge
+    PALADIN = { 20271, 10314 },  -- Judgement, Exorcism
+    HUNTER = { 75, 14287 },      -- Auto Shot, Arcane Shot
+    ROGUE = { 11294 },           -- Sinister Strike
+    PRIEST = { 10934, 10894 },   -- Smite, Shadow Word: Pain
+    SHAMAN = { 15208 },          -- Lightning Bolt
+    MAGE = { 25306, 25304 },     -- Fireball, Frostbolt
+    WARLOCK = { 25307, 25311 },  -- Shadow Bolt, Corruption
+}
+local CLASSIC_DRUID_CASTER_PROBES = { 9912, 9835 } -- Wrath, Moonfire
+local CLASSIC_DRUID_FORM_PROBES = {
+    [DRUID_CAT_FORM] = { 9830, 9904 },  -- Shred, Rake
+    [DRUID_BEAR_FORM] = { 9881, 9908 }, -- Maul, Swipe
+}
+
 local REBUILD_EVENTS = {
     PLAYER_ENTERING_WORLD = true,
     PLAYER_SPECIALIZATION_CHANGED = true,
@@ -140,6 +165,16 @@ local function GetCurrentSpecID()
 end
 
 local function GetProbeList(specID)
+    if IS_FOREVER then
+        local ok, _, classToken = pcall(UnitClass, "player")
+        if not ok or not IsAccessible(classToken) or type(classToken) ~= "string" then return nil end
+        if classToken == "DRUID" then
+            local formID = type(GetShapeshiftFormID) == "function" and AccessibleNumber(GetShapeshiftFormID()) or nil
+            return (formID and CLASSIC_DRUID_FORM_PROBES[formID]) or CLASSIC_DRUID_CASTER_PROBES
+        end
+        return CLASSIC_CLASS_PROBES[classToken]
+    end
+
     local probes = specID and SPEC_RANGE_PROBES[specID]
     if not probes or not DRUID_SPECS[specID] or type(GetShapeshiftFormID) ~= "function" then
         return probes

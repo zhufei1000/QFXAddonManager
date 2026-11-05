@@ -1,4 +1,4 @@
-## Interface: 120005, 120007, 120100, 120105
+## Interface: 120005, 120007, 120100, 120105, 16001
 ## Title: QFX Addon Manager Config
 ## Title-zhCN: QFX 插件管理中心设置
 ## Title-zhTW: QFX 插件管理中心設定
@@ -6,7 +6,7 @@
 ## Notes-zhCN: QFX 插件管理中心的按需加载主窗口、设置宿主与共享控件工厂。
 ## Notes-zhTW: QFX 插件管理中心的按需載入主視窗、設定宿主與共享控件工廠。
 ## Author: Qunfeixuan
-## Version: 1.1.13
+## Version: 1.1.14
 ## LoadOnDemand: 1
 ## Dependencies: QFXAddonManager
 ## IconTexture: Interface\AddOns\QFXAddonManager\Media\addon-fei.blp

@@ -20,6 +20,8 @@
 !/tools/validate_ui.lua
 !/tools/validate_addon_title_language.lua
 !/tools/validate_class_card_picker.lua
+!/tools/validate_forever_compat.lua
+!/tools/validate_forever_toolbox.lua
 !/tests/
 !/docs/
 /docs/*
@@ -27,6 +29,7 @@
 !/docs/PACKAGE_LAYOUT.md
 !/docs/SHARED_MEDIA.md
 !/docs/ENGLISH_UI_LABELS.md
+!/docs/FOREVER_COMPAT.md
 !/docs/RELEASE_*.md
 
 **/__pycache__/

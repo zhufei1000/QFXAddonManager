@@ -7,6 +7,12 @@ local KEY = "player_stats"
 local mod = {}
 local ALIGNMENTS = { LEFT = true, RIGHT = true, CENTER = true }
 
+local IS_FOREVER = false
+if ns.Compat and type(ns.Compat.IsForever) == "function" then
+    local ok, forever = pcall(ns.Compat.IsForever)
+    IS_FOREVER = ok and forever == true
+end
+
 local function L(key)
     return ns.Util and ns.Util.L and ns.Util.L(key) or (ns.L and ns.L(key) or key)
 end
@@ -32,8 +38,16 @@ local DEFAULT_COLORS = PlayerStatsDefaults.colors or {
     leech = { 1.00, 0.36, 0.74, 1.00 },       -- 吸血：粉色
 }
 
+-- Classic-only rows. The saved defaults table may predate them, so fill only
+-- missing entries and leave any user customization untouched.
+DEFAULT_COLORS.hit = DEFAULT_COLORS.hit or { 1.00, 0.82, 0.25, 1.00 }
+DEFAULT_COLORS.parry = DEFAULT_COLORS.parry or { 0.55, 0.75, 1.00, 1.00 }
+DEFAULT_COLORS.block = DEFAULT_COLORS.block or { 0.80, 0.80, 0.80, 1.00 }
+DEFAULT_COLORS.defense = DEFAULT_COLORS.defense or { 0.70, 0.90, 0.70, 1.00 }
+
 -- 显示顺序固定；布局从底部向上生长，但视觉上仍保持本列表从上到下的顺序。
-local STAT_ORDER = {
+-- Forever has no mastery/versatility/tertiary stats; use the Classic sheet.
+local RETAIL_STAT_ORDER = {
     "primary",
     "crit",
     "haste",
@@ -44,11 +58,34 @@ local STAT_ORDER = {
     "avoidance",
     "leech",
 }
+local CLASSIC_STAT_ORDER = {
+    "primary",
+    "crit",
+    "hit",
+    "armor",
+    "dodge",
+    "parry",
+    "block",
+    "defense",
+}
+local function StatOrder()
+    return IS_FOREVER and CLASSIC_STAT_ORDER or RETAIL_STAT_ORDER
+end
 
-local DEFENSE_STATS = {
+local RETAIL_DEFENSE_STATS = {
     armor = true,
     dodge = true,
 }
+local CLASSIC_DEFENSE_STATS = {
+    armor = true,
+    dodge = true,
+    parry = true,
+    block = true,
+    defense = true,
+}
+local function IsDefenseStat(key)
+    return (IS_FOREVER and CLASSIC_DEFENSE_STATS or RETAIL_DEFENSE_STATS)[key] == true
+end
 
 local STAT_LABELS = {
     primary = "Primary Stat",
@@ -60,6 +97,10 @@ local STAT_LABELS = {
     dodge = "Dodge",
     avoidance = "Avoidance",
     leech = "Leech",
+    hit = "Hit",
+    parry = "Parry",
+    block = "Block",
+    defense = "Defense",
 }
 
 local PRIMARY_INFO = {
@@ -68,6 +109,20 @@ local PRIMARY_INFO = {
     int = { index = 4, label = "Intellect" },
 }
 local PRIMARY_BY_INDEX = { [1] = "str", [2] = "agi", [4] = "int" }
+
+-- Classic has no specialization-derived primary stat. Use a class default;
+-- feral druids switch to agility while in cat/bear form.
+local CLASSIC_PRIMARY = {
+    WARRIOR = "str",
+    PALADIN = "str",
+    HUNTER = "agi",
+    ROGUE = "agi",
+    PRIEST = "int",
+    SHAMAN = "int",
+    MAGE = "int",
+    WARLOCK = "int",
+    DRUID = "int",
+}
 
 local EN_SHORT_LABELS = {
     str = "STR",
@@ -81,6 +136,10 @@ local EN_SHORT_LABELS = {
     dodge = "Dodge",
     avoidance = "Avoid",
     leech = "Leech",
+    hit = "Hit",
+    parry = "Parry",
+    block = "Block",
+    defense = "Def",
 }
 
 local function IsEnglishUI()
@@ -93,6 +152,25 @@ local function TryCall(fn, ...)
 end
 
 local function RefreshContext()
+    mod.english = ns.GetResolvedLocale and ns.GetResolvedLocale() == "enUS" or false
+    local _, _, classToken = TryCall(UnitClass, "player")
+
+    if IS_FOREVER then
+        local primary = CLASSIC_PRIMARY[classToken] or "str"
+        if classToken == "DRUID" and type(GetShapeshiftFormID) == "function" then
+            local okForm, form = pcall(GetShapeshiftFormID)
+            local catForm = type(CAT_FORM) == "number" and CAT_FORM or 1
+            local bearForm = type(BEAR_FORM) == "number" and BEAR_FORM or 5
+            local readable = okForm and not (type(issecretvalue) == "function" and issecretvalue(form))
+            if readable and (form == catForm or form == bearForm) then primary = "agi" end
+        end
+        mod.primaryKey = primary
+        -- Classic has no specialization role; keep defense rows visible.
+        mod.isTank = true
+        mod.critSource = classToken == "HUNTER" and "ranged" or (primary == "int" and "spell" or "melee")
+        return
+    end
+
     local api = C_SpecializationInfo
     local getSpec = api and api.GetSpecialization or GetSpecialization
     local getInfo = api and api.GetSpecializationInfo or GetSpecializationInfo
@@ -104,8 +182,6 @@ local function RefreshContext()
     end
     mod.primaryKey = PRIMARY_BY_INDEX[primary] or "str"
     mod.isTank = role == "TANK"
-    mod.english = ns.GetResolvedLocale and ns.GetResolvedLocale() == "enUS" or false
-    local _, _, classToken = TryCall(UnitClass, "player")
     mod.critSource = classToken == "HUNTER" and "ranged" or (mod.primaryKey == "int" and "spell" or "melee")
 end
 
@@ -154,6 +230,27 @@ local function GetCritDisplay()
     return true, value
 end
 
+local function GetHitDisplay()
+    local id
+    if mod.critSource == "spell" then
+        id = _G.CR_HIT_SPELL
+    elseif mod.critSource == "ranged" then
+        id = _G.CR_HIT_RANGED
+    else
+        id = _G.CR_HIT_MELEE
+    end
+    if type(id) ~= "number" or type(GetCombatRatingBonus) ~= "function" then return false end
+    local ok, value = TryCall(GetCombatRatingBonus, id)
+    return ok, value
+end
+
+local function GetDefenseDisplay()
+    local id = _G.CR_DEFENSE_SKILL
+    if type(id) ~= "number" or type(GetCombatRating) ~= "function" then return false end
+    local ok, value = TryCall(GetCombatRating, id)
+    return ok, value
+end
+
 -- Retail 12.1 can return secret numbers for player stats while combat data is
 -- restricted. Do not inspect, compare, convert, or calculate those values in
 -- Lua. Public values can follow character-panel calculations; restricted
@@ -187,6 +284,18 @@ local function GetStatDisplay(key)
     elseif key == "dodge" then
         local ok, value = TryCall(GetDodgeChance)
         return ok, "%.1f%%", value
+    elseif key == "hit" then
+        local ok, value = GetHitDisplay()
+        return ok, "%.2f%%", value
+    elseif key == "parry" then
+        local ok, value = TryCall(GetParryChance)
+        return ok, "%.2f%%", value
+    elseif key == "block" then
+        local ok, value = TryCall(GetBlockChance)
+        return ok, "%.2f%%", value
+    elseif key == "defense" then
+        local ok, value = GetDefenseDisplay()
+        return ok, "%.0f", value
     elseif key == "avoidance" then
         local ok, value = TryCall(GetAvoidance)
         return ok, "%.1f%%", value
@@ -209,9 +318,16 @@ local RATING_CR_NAMES = {
     dodge = { "CR_DODGE" },
     avoidance = { "CR_AVOIDANCE" },
     leech = { "CR_LIFESTEAL" },
+    hit = { "CR_HIT_SPELL", "CR_HIT_MELEE", "CR_HIT_RANGED" },
 }
 
 local function GetRatingConstID(key)
+    if key == "hit" then
+        local name = mod.critSource == "spell" and "CR_HIT_SPELL"
+            or (mod.critSource == "ranged" and "CR_HIT_RANGED" or "CR_HIT_MELEE")
+        local id = _G[name]
+        return type(id) == "number" and id or nil
+    end
     local names = RATING_CR_NAMES[key]
     if type(names) ~= "table" then return nil end
     for _, name in ipairs(names) do
@@ -303,8 +419,8 @@ local function EnsureTables(db)
         db.nameValueGap = math.max(0, math.min(60, valueStart - labelCenter - labelWidth / 2))
     end
 
-    for _, key in ipairs(STAT_ORDER) do
-        if DEFENSE_STATS[key] then
+    for _, key in ipairs(StatOrder()) do
+        if IsDefenseStat(key) then
             if db.showMode[key] == nil then db.showMode[key] = "auto" end
         else
             if db.show[key] == nil then db.show[key] = true end
@@ -314,10 +430,12 @@ local function EnsureTables(db)
 end
 
 local function ShouldShowStat(db, key)
-    if DEFENSE_STATS[key] then
+    if IsDefenseStat(key) then
         local mode = db.showMode[key] or "auto"
         if mode == "show" then return true end
         if mode == "hide" then return false end
+        -- Classic has no specialization role; show defense rows by default.
+        if IS_FOREVER then return true end
         return mod.isTank
     end
     return db.show[key] ~= false
@@ -533,7 +651,8 @@ local function RefreshRows()
     local otherSize = tonumber(db.otherFontSize) or 16
     local labels = mod.labels or {}
     mod.labels = labels
-    for _, key in ipairs(STAT_ORDER) do
+    local statOrder = StatOrder()
+    for _, key in ipairs(statOrder) do
         if ShouldShowStat(db, key) then
             labels[key] = GetStatLabel(key)
             labelW = math.max(labelW, MeasureLayoutText(f, labels[key], key == "primary" and primarySize or otherSize))
@@ -557,9 +676,9 @@ local function RefreshRows()
     local visibleCount = 0
     local totalH = 0
 
-    -- 从底部向上摆放，同时保持 STAT_ORDER 的视觉顺序由上到下。
-    for index = #STAT_ORDER, 1, -1 do
-        local key = STAT_ORDER[index]
+    -- 从底部向上摆放，同时保持属性顺序的视觉顺序由上到下。
+    for index = #statOrder, 1, -1 do
+        local key = statOrder[index]
         local row = GetRow(f, key)
         if ShouldShowStat(db, key) then
             local isPrimary = key == "primary"
@@ -662,7 +781,7 @@ local function RefreshValuesOnly()
     if not f or not f:IsShown() or not f.rows then return end
 
     mod.lastValueRefreshAt = GetTime and GetTime() or 0
-    for _, key in ipairs(STAT_ORDER) do
+    for _, key in ipairs(StatOrder()) do
         local row = f.rows[key]
         if row and row:IsShown() and row.label and row.value then
             SetStatValue(row, key, db)
@@ -702,13 +821,16 @@ local EVENTS = {
     "PLAYER_ENTERING_WORLD",
     "PLAYER_EQUIPMENT_CHANGED",
     "COMBAT_RATING_UPDATE",
-    "MASTERY_UPDATE",
-    "AVOIDANCE_UPDATE",
-    "LIFESTEAL_UPDATE",
     "UNIT_STATS",
-    "PLAYER_SPECIALIZATION_CHANGED",
     "PLAYER_TALENT_UPDATE",
+    "UPDATE_SHAPESHIFT_FORM",
 }
+if not IS_FOREVER then
+    EVENTS[#EVENTS + 1] = "MASTERY_UPDATE"
+    EVENTS[#EVENTS + 1] = "AVOIDANCE_UPDATE"
+    EVENTS[#EVENTS + 1] = "LIFESTEAL_UPDATE"
+    EVENTS[#EVENTS + 1] = "PLAYER_SPECIALIZATION_CHANGED"
+end
 
 local function OnStatsEvent(event, unit)
     if (event == "UNIT_STATS" or event == "PLAYER_SPECIALIZATION_CHANGED") and unit and unit ~= "player" then
@@ -717,7 +839,8 @@ local function OnStatsEvent(event, unit)
 
     -- 只有专精/天赋/进世界/设置变化才需要重排；普通属性变化只更新文本。
     -- 这样主城光环变动不会反复 SetFont / SetPoint / SetSize。
-    if event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_TALENT_UPDATE" then
+    if event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_SPECIALIZATION_CHANGED"
+        or event == "PLAYER_TALENT_UPDATE" or event == "UPDATE_SHAPESHIFT_FORM" then
         ScheduleLayoutUpdate(0.12, 0.50)
     else
         ScheduleValueUpdate(0.10, 0.25)
@@ -788,7 +911,7 @@ end
 
 local function ResetColors(db)
     EnsureTables(db)
-    for _, key in ipairs(STAT_ORDER) do
+    for _, key in ipairs(StatOrder()) do
         db.colors[key] = CopyColor(DEFAULT_COLORS[key] or { 1, 1, 1, 1 })
     end
     ns.ApplyModule(KEY)
@@ -796,7 +919,7 @@ end
 
 local function ModeOptions()
     return {
-        { text = L("Auto (Tank only)"), value = "auto" },
+        { text = L(IS_FOREVER and "Auto (Defense)" or "Auto (Tank only)"), value = "auto" },
         { text = L("Always Show"),      value = "show" },
         { text = L("Always Hide"),      value = "hide" },
     }
@@ -846,8 +969,8 @@ ns.RegisterModule(KEY, {
                 EnsureTables(db)
                 local s = page:NewSection(ui.L("Display") .. " / " .. ui.L("Visible Stats"))
                 local items = {}
-                for _, key in ipairs(STAT_ORDER) do
-                    if not DEFENSE_STATS[key] then
+                for _, key in ipairs(StatOrder()) do
+                    if not IsDefenseStat(key) then
                         local statKey = key
                         items[#items + 1] = {
                             label = ui.L(STAT_LABELS[statKey] or statKey),
@@ -865,14 +988,16 @@ ns.RegisterModule(KEY, {
                 page:AddSection(s)
 
                 local s0 = page:NewSection(ui.L("Defense Stats") .. " / " .. ui.L("Auto Display"))
-                s0:Dropdown(ui.L("Armor Display"), function() return db.showMode.armor or "auto" end,
-                    function(v)
-                        db.showMode.armor = v; ns.ApplyModule(KEY)
-                    end, ModeOptions(), 116, 150)
-                s0:Dropdown(ui.L("Dodge Display"), function() return db.showMode.dodge or "auto" end,
-                    function(v)
-                        db.showMode.dodge = v; ns.ApplyModule(KEY)
-                    end, ModeOptions(), 116, 150)
+                for _, key in ipairs(StatOrder()) do
+                    if IsDefenseStat(key) then
+                        local statKey = key
+                        s0:Dropdown(ui.L((STAT_LABELS[statKey] or statKey) .. " Display"),
+                            function() return db.showMode[statKey] or "auto" end,
+                            function(v)
+                                db.showMode[statKey] = v; ns.ApplyModule(KEY)
+                            end, ModeOptions(), 116, 150)
+                    end
+                end
                 page:AddSection(s0)
 
                 local s2 = page:NewSection(ui.L("Display") .. " / " .. ui.L("Size and Layout"))
@@ -916,7 +1041,7 @@ ns.RegisterModule(KEY, {
                 EnsureTables(db)
                 local s = page:NewSection(ui.L("Text Color") .. " / " .. ui.L("Default Colors"))
                 local items = {}
-                for _, key in ipairs(STAT_ORDER) do
+                for _, key in ipairs(StatOrder()) do
                     local statKey = key
                     items[#items + 1] = {
                         label = ui.L(STAT_LABELS[statKey] or statKey),

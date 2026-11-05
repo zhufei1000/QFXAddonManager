@@ -6,6 +6,12 @@ ns = _G.QFXAddonManagerToolboxNS or ns
 local KEY = "cvar_presets"
 local mod = {}
 
+local IS_FOREVER = false
+if ns.Compat and type(ns.Compat.IsForever) == "function" then
+    local ok, forever = pcall(ns.Compat.IsForever)
+    IS_FOREVER = ok and forever == true
+end
+
 -- 常用客户端 CVar 推荐预设（12.x 取值）。
 -- 姓名板距离 60 码；不含 equipmentManager 与 spellActivationOverlayOpacity
 -- （后者仅在用户勾选“关闭法术触发特效”时才写入 0）；
@@ -226,6 +232,7 @@ local function ApplyCVarSettings(db, settings)
 end
 
 local function ApplySpecialSettings(db)
+    if IS_FOREVER then return 0 end
     if not db or not db.enabled then return 0 end
 
     local settings = type(db.specialSettings) == "table" and db.specialSettings or {}
@@ -399,7 +406,7 @@ ns.RegisterModule(KEY, {
                 page:AddSection(s)
 
                 local common = page:NewSection(ui.L("Common Settings"))
-                common:CheckGrid({
+                local commonItems = {
                     {
                         label = ui.L("Auto Compare Items"),
                         getValue = function() return GetEffectiveCVar(db, "alwaysCompareItems") == "1" end,
@@ -420,6 +427,7 @@ ns.RegisterModule(KEY, {
                         setValue = function(v) SetSpecialSettingIntent(db, v) end,
                         note = ui.L("Check: disable simplified nameplates so minions, minor units, friendly players and friendly NPCs show full nameplates. Uncheck: restore Blizzard defaults."),
                         enabled = MakeSimplifiedNameplatesRule(db, ui),
+                        foreverHidden = true,
                     },
                     {
                         label = ui.L("Lua Error Popups (Check = Block)"),
@@ -455,8 +463,15 @@ ns.RegisterModule(KEY, {
                         end,
                         note = ui.L("Check: spell activation overlay opacity is set to 0, hiding screen-center proc effects. Uncheck: only clears this addon's override; the opacity keeps its current value."),
                         enabled = enabledRule,
+                        foreverHidden = true,
                     },
-                }, { columns = 2 })
+                }
+                if IS_FOREVER then
+                    for index = #commonItems, 1, -1 do
+                        if commonItems[index].foreverHidden then table.remove(commonItems, index) end
+                    end
+                end
+                common:CheckGrid(commonItems, { columns = 2 })
                 page:AddSection(common)
 
                 -- 地图入口模块的开关并入本页，不再单独占一个导航入口。
@@ -466,8 +481,9 @@ ns.RegisterModule(KEY, {
                     map:Check(ui.L("Enable"), function() return mapDB.enabled end, function(v)
                         ns.SetModuleEnabled("map_entrances", v)
                     end, ui.L("When enabled, the selected entrance filters are applied automatically at login."))
-                    map:CheckGrid({
-                        {
+                    local mapItems = {}
+                    if not IS_FOREVER then
+                        mapItems[#mapItems + 1] = {
                             label = ui.L("Show Delve Entrances"),
                             getValue = function() return mapDB.showDelveEntrances ~= false end,
                             setValue = function(v)
@@ -475,20 +491,24 @@ ns.RegisterModule(KEY, {
                                 ns.ApplyModule("map_entrances")
                             end,
                             note = ui.L("Check: show delve entrance pins on the world map. Uncheck: hide them."),
-                        },
-                        {
-                            label = ui.L("Show Dungeon Entrances"),
-                            getValue = function() return mapDB.showDungeonEntrances ~= false end,
-                            setValue = function(v)
-                                mapDB.showDungeonEntrances = v and true or false
-                                ns.ApplyModule("map_entrances")
-                            end,
-                            note = ui.L("Check: show dungeon entrance pins on the world map. Uncheck: hide them."),
-                        },
-                    }, { columns = 2 })
+                        }
+                    end
+                    mapItems[#mapItems + 1] = {
+                        label = ui.L("Show Dungeon Entrances"),
+                        getValue = function() return mapDB.showDungeonEntrances ~= false end,
+                        setValue = function(v)
+                            mapDB.showDungeonEntrances = v and true or false
+                            ns.ApplyModule("map_entrances")
+                        end,
+                        note = ui.L("Check: show dungeon entrance pins on the world map. Uncheck: hide them."),
+                    }
+                    map:CheckGrid(mapItems, { columns = IS_FOREVER and 1 or 2 })
                     map:DynamicText(function()
                         local function current(name)
                             return tostring((ns.Compat and ns.Compat.GetCVar and ns.Compat.GetCVar(name, "?")) or "?")
+                        end
+                        if IS_FOREVER then
+                            return "showDungeonEntrancesOnMap=" .. current("showDungeonEntrancesOnMap")
                         end
                         return "showDelveEntrancesOnMap=" .. current("showDelveEntrancesOnMap")
                             .. ", showDungeonEntrancesOnMap=" .. current("showDungeonEntrancesOnMap")

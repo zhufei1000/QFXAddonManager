@@ -78,6 +78,8 @@ def check():
     for locale in ("enUS", "zhCN", "zhTW"):
         for test in ("validate_addon_title_language", "validate_class_card_picker"):
             subprocess.run([lua, "tools/" + test + ".lua", locale], check=True, cwd=ROOT)
+    for test in ("validate_forever_compat", "validate_forever_toolbox"):
+        subprocess.run([lua, "tools/" + test + ".lua"], check=True, cwd=ROOT)
     print(f"Verified {syntax_count} Lua files and UI behavior in three languages")
 
 
