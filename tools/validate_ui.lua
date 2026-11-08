@@ -96,6 +96,8 @@ function methods:GetNumPoints() return #(self.points or {}) end
 function methods:GetPoint(i) return unpack((self.points or {})[i or 1] or { "CENTER", UIParent, "CENTER", 0, 0 }) end
 function methods:GetFrameLevel() return self.level end
 function methods:SetFrameLevel(v) self.level = v end
+function methods:SetFrameStrata(v) self.strata = v end
+function methods:GetFrameStrata() return self.strata or (self.parent and self.parent:GetFrameStrata()) or "MEDIUM" end
 function methods:SetScale(value) self.scale = value end
 function methods:GetEffectiveScale() return self:GetScale() * (self.parent and self.parent:GetEffectiveScale() or 1) end
 function methods:GetScale() return self.scale or 1 end
@@ -483,7 +485,7 @@ assert(copyButton.point[1] == "LEFT" and copyButton.point[2] == UI.detailPanel.t
     and copyButton.point[4] == UI.detailPanel.title:GetStringWidth() + 6,
     "Copy glyph must follow the visible title width")
 copyButton:Click()
-assert(clipboardText == data[2].title, "Clicking the copy glyph must copy the plugin name")
+assert(clipboardText == data[2].name, "Without an English title, copy the addon directory name")
 assert(copyButton._icon.tint[1] == W.Skin.good[1] and copyButton._icon.tint[2] == W.Skin.good[2],
     "A direct copy must flash the glyph green")
 AM.SelectItem(nil); UI.UpdateDetailCopyButton(UI.detailPanel, nil)
@@ -508,8 +510,8 @@ W.CopyDialog = function(selfW, text, opts)
 end
 AM.SelectItem(data[2]); UI.RefreshDetail()
 copyButton:Click()
-assert(opened and opened.text == data[2].title and opened.opts.title == AM.L.COPY_NAME
-    and opened.dialog.editBox:GetText() == data[2].title and opened.dialog.editBox.focused,
+assert(opened and opened.text == data[2].name and opened.opts.title == AM.L.COPY_NAME
+    and opened.dialog.editBox:GetText() == data[2].name and opened.dialog.editBox.focused,
     "A missing clipboard API must route through the focused factory copy dialog")
 opened.dialog:Close()
 C_Clipboard, W.CopyDialog = savedClipboard, savedCopyDialog
@@ -905,7 +907,7 @@ assert(QFXWidgets == W and W.ICON_BUTTON_REVISION == 1 and W.IconButton,
     "An existing same-version singleton receives the icon-button capability without replacement")
 W.COPY_DIALOG_REVISION, W.CopyDialog = nil, nil
 loadConfig("Libs/QFXWidgets.lua")
-assert(QFXWidgets == W and W.COPY_DIALOG_REVISION == 1 and W.CopyDialog,
+assert(QFXWidgets == W and W.COPY_DIALOG_REVISION == 2 and W.CopyDialog,
     "An existing same-version singleton receives the copy-dialog capability without replacement")
 local confirmed = false
 local confirmDialog = W:Confirm({ text = "Reset?", onAccept = function() confirmed = true end })

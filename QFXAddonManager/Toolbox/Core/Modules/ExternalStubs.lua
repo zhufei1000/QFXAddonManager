@@ -24,6 +24,12 @@ local FOREVER_HIDDEN = {
 -- loaded; enabling the module (or opening its page) pulls the addon in.
 local EXTERNAL_MODULES = {
     {
+        key = "auto_quest",
+        bundle = "AutoTools",
+        titleKey = "Auto Quest",
+        descKey = "Automatically accept and turn in quests, with separate Shift controls and quest filters.",
+    },
+    {
         key = "cvar_presets",
         bundle = "Optional",
         titleKey = "CVar Presets",

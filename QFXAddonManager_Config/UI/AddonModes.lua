@@ -76,6 +76,10 @@ local function Title(mode)
     return mode == "mythic" and L.MODE_MYTHIC or mode == "raid" and L.MODE_RAID or mode == "pvp" and L.MODE_PVP or L.MODE_GLOBAL
 end
 
+-- U+2713 is missing from the Forever (Camelot) Chinese font and renders as a
+-- tofu square. Use a Blizzard check texture instead of relying on font glyphs.
+local ACTIVE_MODE_MARK = "|TInterface\\Buttons\\UI-CheckBox-Check:16:16:0:0|t "
+
 function UI.CreateModeButtons(parent, list)
     parent.modeButtons = {}
     local last
@@ -128,7 +132,7 @@ function UI.RefreshModeControls()
     local active = QFXAM.GetAddonMode()
     for mode, button in pairs(frame.modeButtons) do
         button.modeRow:SetSelected(UI.selectedModeSettings == mode)
-        button:SetText((mode == active and "✓ " or "") .. Title(mode))
+        button:SetText((mode == active and ACTIVE_MODE_MARK or "") .. Title(mode))
     end
     local panel = UI.addonListPanel
     if panel and panel.modeSelector then UI.GetWidgets():Refresh(panel) end

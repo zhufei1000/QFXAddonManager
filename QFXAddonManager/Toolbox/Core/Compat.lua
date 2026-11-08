@@ -37,6 +37,24 @@ function Compat.Call(fn, ...)
     return CallResults(Compat.SafeCall(fn, ...))
 end
 
+function Compat.IsQuestTrivial(questID)
+    if not questID or questID <= 0 then return false end
+    return C_QuestLog and IsFunction(C_QuestLog.IsQuestTrivial)
+        and C_QuestLog.IsQuestTrivial(questID) == true or false
+end
+
+function Compat.IsQuestFromOlderExpansion(questID)
+    if not questID or questID <= 0 or (Compat.IsForever and Compat.IsForever()) then return false end
+    if not IsFunction(GetQuestExpansion) or not IsFunction(GetServerExpansionLevel)
+        or not IsFunction(GetMaxLevelForPlayerExpansion) or not IsFunction(UnitLevel) then return false end
+    if C_PlayerInfo and IsFunction(C_PlayerInfo.IsPlayerInChromieTime)
+        and C_PlayerInfo.IsPlayerInChromieTime() then return false end
+    local level, maxLevel = UnitLevel("player"), GetMaxLevelForPlayerExpansion()
+    if not level or not maxLevel or level < maxLevel then return false end
+    local expansion, current = GetQuestExpansion(questID), GetServerExpansionLevel()
+    return expansion ~= nil and current ~= nil and expansion >= 0 and expansion < current
+end
+
 function Compat.IsAddOnLoaded(name)
     if ns.Builtin and ns.Builtin.files[name] then return ns.Builtin.loaded[name] == true end
     if not name or name == "" then return false end

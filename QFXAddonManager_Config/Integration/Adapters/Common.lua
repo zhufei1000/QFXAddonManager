@@ -83,6 +83,40 @@ function A.NativeSlash(command, argument)
     return A.NativeOptions(function() return A.CallNativeSlash(command, argument) end)
 end
 
+function A.SlashOptions(keys, message)
+    return function()
+        if A.TrySlash(keys, message or "") then return true end
+        error(QFXAM.L.OPEN_OPTIONS_FAILED)
+    end
+end
+
+-- Older consumer builds route their native settings entry back through the
+-- manager. Hide only the manager's launcher for the duration of that call so
+-- their own native window opens instead of recursing into the manager.
+function A.WithoutManagerOptions(fn)
+    if type(fn) ~= "function" then return false end
+    local manager = rawget(_G, "QFXAddonManagerAPI")
+    if not manager or type(manager.OpenAddonSettings) ~= "function" then
+        return fn()
+    end
+    local original = manager.OpenAddonSettings
+    manager.OpenAddonSettings = nil
+    local ok, result = pcall(fn)
+    manager.OpenAddonSettings = original
+    if not ok then error(result) end
+    return result
+end
+
+-- Only the two retained dedicated pages (QFXBeggar and QfxUI_Installer) use
+-- this entry. Every other addon opens its own native options window.
+function A.OpenEmbeddedSettings(name, tabKey)
+    local manager = _G.QFXAddonManager
+    if manager and manager.UI and manager.UI.OpenAddonSettingsWindow then
+        return manager.UI.OpenAddonSettingsWindow(name, tabKey)
+    end
+    return false
+end
+
 -- Modern Settings requires the registered category ID, not its display name.
 function A.NativeCategory(name)
     return A.NativeOptions(function()
@@ -96,18 +130,6 @@ function A.NativeCategory(name)
         end
         return false
     end)
-end
-
--- Adapted QFX plugins route their external settings entry through the manager.
--- The manager window is load-on-demand, so ask the manager to open the
--- embedded settings page (which also pulls the companion addon in) instead of
--- touching QFXAM.UI directly.
-function A.OpenEmbeddedSettings(name)
-    local api = rawget(_G, "QFXAddonManagerAPI")
-    if api and api.OpenAddonSettings and api.OpenAddonSettings(name) then return true end
-    local AM = _G.QFXAddonManager
-    if AM and AM.UI and AM.UI.OpenEmbeddedSettings then return AM.UI.OpenEmbeddedSettings() end
-    return false
 end
 
 -- Registration and layout only; plugin adapters own their APIs and settings.

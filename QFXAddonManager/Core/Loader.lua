@@ -291,40 +291,47 @@ function QFXAM.LoadGroupNow(groupKey)
     RefreshUI()
 end
 
-function QFXAM.OpenRegisteredOptions(name)
-    local open = QFXAM.Registry.GetOpenOptions(name)
-    if type(open) ~= "function" then
-        QFXAM.Print(L.OPEN_OPTIONS_FAILED or "Options unavailable.")
-        return
-    end
-
-    local registration = QFXAM.Registry.Get(name)
-    if registration and registration.nativeOptions and InCombatLockdown and InCombatLockdown() then
-        QFXAM.Print(L.COMBAT_LOCKED_TIP or "Unavailable in combat.")
+function QFXAM.OpenRegisteredOptions(name, quiet, ...)
+    local openArgs, openCount = { ... }, select("#", ...)
+    -- An adapter or an older consumer addon can route its native options entry
+    -- back into the manager. Reject the reentrant call instead of recursing
+    -- until the client overflows the C stack.
+    if type(name) ~= "string" or QFXAM.__openingOptions then return false end
+    if InCombatLockdown and InCombatLockdown() then
+        if not quiet then QFXAM.Print(L.COMBAT_LOCKED_TIP or "Unavailable in combat.") end
         return false
     end
 
-    -- The manager UI is load-on-demand. Embedded-settings launchers touch
-    -- QFXAM.UI and adapter-patched open options, so pull both companions in
-    -- before dispatching.
-    if QFXAM.EnsureConfigLoaded then QFXAM.EnsureConfigLoaded() end
-    if QFXAM.EnsureAdaptersLoaded then QFXAM.EnsureAdaptersLoaded() end
+    -- Config and its adapters load together. Resolve the launcher afterwards,
+    -- including when a consumer calls the API before the manager was opened.
+    if QFXAM.EnsureAdaptersLoaded and QFXAM.EnsureAdaptersLoaded() == false then return false end
+    local open = QFXAM.Registry.GetOpenOptions(name)
+    if type(open) ~= "function" then
+        if not quiet then QFXAM.Print(L.OPEN_OPTIONS_FAILED or "Options unavailable.") end
+        return false
+    end
 
-    -- LNui/163UI 的思路是“点到功能时再接入/加载”。这里也先尝试加载 LOD 插件，
-    -- 避免第三栏的“打开设置”因为插件尚未载入而失败。
-    local info = name and QFXAM.Cache and QFXAM.Cache.addons and QFXAM.Cache.addons[name]
-    if (not info or not info.loaded) and QFXAM.IsAddonClassBlocked and QFXAM.IsAddonClassBlocked(name) then
+    local info = QFXAM.Cache and QFXAM.Cache.addons and QFXAM.Cache.addons[name]
+    local loaded = (info and info.loaded) or (not info and API.IsAddOnLoaded and API.IsAddOnLoaded(name))
+    if not loaded and QFXAM.IsAddonClassBlocked and QFXAM.IsAddonClassBlocked(name) then
         QFXAM.Print(L.CLASS_BLOCKED)
         return false
     end
-    if info and info.lod and not info.loaded then
-        API.LoadAddOn(name)
-    end
+    local lod = (info and info.lod) or (not info and API.IsAddOnLoadOnDemand and API.IsAddOnLoadOnDemand(name))
 
-    local ok, err = pcall(open)
-    if not ok then
-        QFXAM.Print(err or (L.OPEN_OPTIONS_FAILED or "Options unavailable."))
+    QFXAM.__openingOptions = true
+    local ok, result, reason = pcall(function()
+        if lod and not loaded then
+            local success, loadReason = API.LoadAddOn(name)
+            if not success then return false, loadReason end
+        end
+        return open((unpack or table.unpack)(openArgs, 1, openCount))
+    end)
+    QFXAM.__openingOptions = nil
+    if not ok or result == false then
+        QFXAM.Print((not ok and result) or reason or L.OPEN_OPTIONS_FAILED or "Options unavailable.")
     end
     QFXAM.ScanAddOns()
     RefreshUI()
+    return ok and result ~= false
 end

@@ -46,20 +46,6 @@ QFXAM.RegisterGroup("bigwigs", {
     },
 })
 
-QFXAM.RegisterGroup("weakauras", {
-    title = "WeakAuras 光环提醒",
-    category = "ui",
-    adapted = true,
-    primary = "WeakAuras",
-    children = {
-        "WeakAuras",
-        "WeakAurasOptions",
-        "WeakAurasArchive",
-        "WeakAurasModelPaths",
-        "WeakAurasTemplates",
-    },
-})
-
 QFXAM.RegisterGroup("plater", {
     title = "Plater 姓名板",
     category = "ui",
@@ -76,34 +62,6 @@ QFXAM.RegisterGroup("omnicd", {
     adapted = true,
     primary = "OmniCD",
     children = { "OmniCD" },
-})
-
-QFXAM.RegisterGroup("mdt", {
-    title = "MDT 大秘境路线",
-    category = "raid",
-    adapted = true,
-    primary = "MythicDungeonTools",
-    children = { "MythicDungeonTools" },
-})
-
-QFXAM.RegisterGroup("raiderio", {
-    title = "Raider.IO 大秘境数据",
-    category = "raid",
-    adapted = true,
-    primary = "RaiderIO",
-    children = {
-        "RaiderIO",
-        "RaiderIO_DB_US_R",
-        "RaiderIO_DB_US_A",
-        "RaiderIO_DB_EU_R",
-        "RaiderIO_DB_EU_A",
-        "RaiderIO_DB_TW_R",
-        "RaiderIO_DB_TW_A",
-        "RaiderIO_DB_KR_R",
-        "RaiderIO_DB_KR_A",
-        "RaiderIO_DB_CN_R",
-        "RaiderIO_DB_CN_A",
-    },
 })
 
 QFXAM.RegisterGroup("cell", {

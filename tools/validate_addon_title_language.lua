@@ -6,10 +6,11 @@ AM.Cache = { addons = {}, list = {}, display = {} }
 local function load(path) assert(loadfile("QFXAddonManager/" .. path))(AM.name, AM) end
 for _, path in ipairs({ "Core/Registry.lua", "Core/Groups.lua", "Core/Modules.lua",
     "Core/Scanner.lua", "Configs/Categories.lua", "Configs/Titles.lua" }) do load(path) end
-local names = { "BlizzMove", "BugSack", "FriendGroups", "NativeTitle", "ChineseOnly" }
+local names = { "BlizzMove", "BugSack", "FriendGroups", "NativeTitle", "ChineseOnly", "QFXSystemBar" }
 local raw = { BlizzMove = "暴雪窗口移动", BugSack = "BugSack", FriendGroups = "好友分组",
-    NativeTitle = "Native Original Name", ChineseOnly = "中文插件" }
-local english = { BlizzMove = "|cffff8800BlizzMove|r", FriendGroups = "FriendGroups Original" }
+    NativeTitle = "Native Original Name", ChineseOnly = "中文插件", QFXSystemBar = "顶部微型菜单" }
+local english = { BlizzMove = "|cffff8800BlizzMove|r", FriendGroups = "FriendGroups Original",
+    QFXSystemBar = "|cffff66ccQ|cffffa64dF|cffffd100X|r|cffffffffSystemBar|r" }
 local reads = 0
 API.GetNumAddOns = function() return #names end
 API.GetAddOnInfo = function(value)
@@ -39,6 +40,7 @@ assert(AM.Cache.addons.BlizzMove.titleEN == "BlizzMove")
 assert(AM.Cache.addons.BugSack.titleEN == "BugSack")
 assert(AM.Cache.addons.NativeTitle.titleEN == "Native Original Name")
 assert(AM.Cache.addons.ChineseOnly.titleEN == "ChineseOnly")
+assert(AM.Cache.addons.QFXSystemBar.titleEN == "QFXSystemBar")
 local selectedLocale = AM.GetLocale()
 for _, item in ipairs(AM.Cache.display) do
     local expected = selectedLocale == "enUS" and AM.Cache.addons[item.primary or item.name].titleEN or item.titleZH
@@ -60,14 +62,21 @@ for index = 1, math.ceil(#AM.Cache.display / 2) do
     end
 end
 assert(checked == #names, "Exercise every visible factory card")
-local item = AM.Cache.display[1]
-AM.SelectItem(item); UI.RefreshDetail()
-assert((UI.detailPanel.title._fullText or UI.detailPanel.title:GetText()) == UI.GetItemTitle(item))
 local before = reads
+local copied
+C_Clipboard.SetClipboard = function(text) copied = text end
+for _, item in ipairs(AM.Cache.display) do
+    AM.SelectItem(item); UI.RefreshDetail()
+    assert((UI.detailPanel.title._fullText or UI.detailPanel.title:GetText()) == UI.GetItemTitle(item))
+    copied = nil
+    UI.detailPanel.copyButton:Click()
+    assert(copied == AM.Cache.addons[item.primary or item.name].titleEN,
+        "The detail copy button must use the native English title in every locale")
+end
 AM.BuildDisplayList(); UI.RefreshList(); UI.RefreshDetail()
-assert(reads == before, "Ordinary refresh cannot query addon metadata")
+assert(reads == before, "Copying and ordinary refresh cannot query addon metadata")
 assert(UI.GetItemTitle({ type = "toolboxFeature", title = "Localized Tool", titleEN = "dictionary_key" }) == "Localized Tool")
 local active = AM.GetLocale()
 AM.db.ui.language = active == "enUS" and "zhCN" or "enUS"
 assert(AM.GetLocale() == active, "Pending language selection applies only after reload")
-print("PASS: " .. selectedLocale .. " native English titles, module identity, pooled cards, duplicate subtitles, detail title and cached refresh")
+print("PASS: " .. selectedLocale .. " native English titles, module identity, pooled cards, localized detail titles, English copies and cached refresh")

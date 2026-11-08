@@ -1,6 +1,5 @@
--- Focused Forever checks for the two Classic-stat consumers: Player Stats and
--- the self-marker attack-range probes. No live frames are needed; the module
--- registration and its pure stat helpers are exercised directly.
+-- Focused Forever checks for Classic stats, range probes, and GCD selection.
+-- No live frames are needed to exercise these runtime contracts.
 
 local function upvalue(fn, wanted)
     for index = 1, math.huge do
@@ -44,9 +43,9 @@ local setValue = assert(upvalue(refreshRows, "SetStatValue"))
 local getStatDisplay = assert(upvalue(setValue, "GetStatDisplay"))
 
 local order = statOrder()
-assert(#order == 8 and order[1] == "primary" and order[3] == "hit"
-    and order[6] == "parry" and order[8] == "defense",
-    "Forever must use the Classic stat order")
+assert(#order == 9 and order[1] == "primary" and order[3] == "haste" and order[4] == "hit"
+    and order[7] == "parry" and order[9] == "defense",
+    "Forever must use the Classic stat order with haste")
 
 UnitClass = function() return "Mage", "MAGE", 1 end
 GetShapeshiftFormID = function() return 0 end
@@ -54,20 +53,101 @@ refreshContext()
 assert(mod.primaryKey == "int" and mod.critSource == "spell",
     "Mage must use Intellect and spell hit/crit")
 
-CR_HIT_SPELL, CR_DEFENSE_SKILL = 8, 12
-GetCombatRatingBonus = function(id) return id == CR_HIT_SPELL and 3.5 or 0 end
-GetCombatRating = function(id) return id == CR_DEFENSE_SKILL and 305 or 0 end
+CR_HIT_MELEE, CR_HIT_RANGED, CR_HIT_SPELL = 6, 7, 8
+CR_DEFENSE_SKILL = 2
+CR_HASTE_SPELL = 18
+GetCombatRatingBonus = function(id)
+    if id == CR_HIT_MELEE then return 2 end
+    if id == CR_HIT_RANGED then return 1.5 end
+    if id == CR_HIT_SPELL then return 3.5 end
+    return 0
+end
+GetHitModifier = function() return 1 end
+GetRangedHitModifier = function() return 2 end
+GetSpellHitModifier = function() return 0.5 end
+GetCombatRating = function(id)
+    if id == CR_DEFENSE_SKILL then return 0 end
+    if id == CR_HASTE_SPELL then return 1395 end
+    return 0
+end
+UnitDefenseSkill = function(unit) return 300, 5 end
+-- Forever's GetHaste stays at zero; the Camelot character sheet uses the
+-- highest of melee, ranged (base plus ammo) and spell haste instead.
+GetHaste = function() return 0 end
+GetMeleeHaste = function() return 0 end
+GetRangedHaste = function() return 0, 0 end
+UnitSpellHaste = function(unit) return unit == "player" and 10 or 0 end
 GetParryChance = function() return 5.25 end
 GetBlockChance = function() return 4.5 end
 
+local hasteOK, hasteFormat, hasteValue = getStatDisplay("haste")
+assert(hasteOK and hasteFormat == "%.1f%%" and hasteValue == 10,
+    "Forever must read spell haste when GetHaste is zero")
+GetMeleeHaste = function() return 5 end
+GetRangedHaste = function() return 4, 6 end
+UnitSpellHaste = function() return 8 end
+hasteOK, hasteFormat, hasteValue = getStatDisplay("haste")
+assert(hasteOK and hasteFormat == "%.1f%%" and hasteValue == 10,
+    "Forever must add ranged base and ammo haste and use the character-sheet maximum")
+
+local displayedValue, ratingShown
+local fakeRow = {
+    value = { SetFormattedText = function(_, formatText, value) displayedValue = string.format(formatText, value) end },
+    rating = {
+        SetFormattedText = function() end,
+        Show = function() ratingShown = true end,
+        Hide = function() ratingShown = false end,
+    },
+}
+setValue(fakeRow, "haste", { showRating = true })
+assert(displayedValue == "10.0%" and ratingShown == false,
+    "Forever must never display rating numbers, even with a saved showRating profile")
+local getRatingDisplay = assert(upvalue(setValue, "GetRatingDisplay"))
+local hasteRatingOK, hasteRating = getRatingDisplay("haste")
+assert(hasteRatingOK and hasteRating == 1395,
+    "Forever must still expose the stored haste rating internally")
+
+local checkLabels = {}
+local section = {
+    CheckGrid = function() end,
+    Check = function(_, label) checkLabels[#checkLabels + 1] = label end,
+    Dropdown = function() end,
+    ValueSlider = function() end,
+}
+local page = { NewSection = function() return section end, AddSection = function() end }
+for _, tab in ipairs(stats.tabs) do
+    if tab.key == "display" then
+        tab.build(page, db, stats, { L = function(key) return key end })
+    end
+end
+assert(not string.find(table.concat(checkLabels, "\n"), "Show Rating Numbers", 1, true),
+    "Forever must not offer the rating-number toggle")
+
 local hitOK, hitFormat, hitValue = getStatDisplay("hit")
-assert(hitOK and hitFormat == "%.2f%%" and hitValue == 3.5)
+assert(hitOK and hitFormat == "%.2f%%" and hitValue == 4,
+    "Forever hit must add modifiers and use the highest of melee/ranged/spell")
 local parryOK, parryFormat, parryValue = getStatDisplay("parry")
 assert(parryOK and parryFormat == "%.2f%%" and parryValue == 5.25)
 local blockOK, blockFormat, blockValue = getStatDisplay("block")
 assert(blockOK and blockFormat == "%.2f%%" and blockValue == 4.5)
 local defenseOK, defenseFormat, defenseValue = getStatDisplay("defense")
-assert(defenseOK and defenseFormat == "%.0f" and defenseValue == 305)
+assert(defenseOK and defenseFormat == "%.0f" and defenseValue == 305,
+    "Forever defense must use UnitDefenseSkill base plus modifier")
+
+GetSpellCritChance = function() return 10 end
+GetCritChance = function() return 20 end
+GetRangedCritChance = function() return 15 end
+local critOK, critFormat, critValue = getStatDisplay("crit")
+assert(critOK and critFormat == "%.1f%%" and critValue == 20,
+    "Forever crit must use the highest of spell, melee and ranged crit")
+UnitArmor = function() return 100, 240, 240, 0 end
+local armorOK, armorFormat, armorValue = getStatDisplay("armor")
+assert(armorOK and armorFormat == "%.0f" and armorValue == 240,
+    "Forever armor must use the effective armor return value")
+GetDodgeChance = function() return 4.5 end
+local dodgeOK, dodgeFormat, dodgeValue = getStatDisplay("dodge")
+assert(dodgeOK and dodgeFormat == "%.1f%%" and dodgeValue == 4.5,
+    "Forever dodge must use GetDodgeChance")
 
 -- Druid cat form switches the primary stat to agility.
 UnitClass = function() return "Druid", "DRUID", 1 end
@@ -108,5 +188,18 @@ lagCapture("QFXAddonManager", {
 })
 assert(lagInfo and #lagInfo.tabs == 1 and lagInfo.tabs[1].key == "basic",
     "Forever Lag Tolerance must hide the specialization page")
+
+-- On Forever, 61304 returns nil and only the Classic ID has cooldown data.
+local gcdBody
+AM.ToolboxRuntime = { AddFile = function(_, _, fn) gcdBody = fn end }
+assert(loadfile("QFXAddonManager/Toolbox/Core/GCDService.lua"))("QFXAddonManager", AM)
+gcdBody("QFXAddonManager", ns)
+GetTime = function() return 101 end
+C_Spell = { GetSpellCooldown = function(id)
+    if id == 29515 then return { startTime = 100, duration = 1.5, isActive = true } end
+end }
+local gcd = ns.GCDService:GetSnapshot(true)
+assert(gcd and gcd.startTime == 100 and gcd.duration == 1.5,
+    "Forever GCD reads 29515 so the self marker and history share the Classic cooldown")
 
 print("Forever toolbox checks passed")

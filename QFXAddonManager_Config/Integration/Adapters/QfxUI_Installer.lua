@@ -436,4 +436,4 @@ A.Register("QfxUI_Installer", { category = "other", addons = { "QfxUI_Installer"
         } } }
         return definition
     end,
-    openOptions = function() A.OpenEmbeddedSettings("QfxUI_Installer") end })
+    openOptions = function(tabKey) return A.OpenEmbeddedSettings("QfxUI_Installer", tabKey) end })

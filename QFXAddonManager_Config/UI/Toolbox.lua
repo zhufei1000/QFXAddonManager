@@ -6,60 +6,131 @@ function UI.IsToolboxDetail()
     return AM.State.category == "toolbox" or (item and item.type == "toolboxFeature")
 end
 
-function UI.GetEmbeddedSettingsKey(item)
-    if not item or item.missing or item.type == "toolboxFeature" then return nil end
-    local name = item.primary or item.name
-    if AM.Registry.GetEmbeddedSettings and AM.Registry.GetEmbeddedSettings(name) then return "@addon:" .. name end
+-- The right-hand dock only hosts built-in tools. QFXBeggar and QfxUI_Installer
+-- keep their dedicated pages in a standalone window; every other addon uses
+-- its own native options window.
+function UI.GetEmbeddedSettingsKey()
+    return nil
+end
+
+local addonSettingsWindow
+
+local function GetConfigNamespace()
+    local ns = T.GetNamespace()
+    if ns and not ns.QFXManagerHost and not UI.GetWidgets():InCombatLocked() and ns.EnsureConfigLoaded then
+        ns.EnsureConfigLoaded()
+    elseif not ns and AM.EnsureConfigLoaded then
+        AM.EnsureConfigLoaded()
+        ns = T.GetNamespace()
+    end
+    return ns
+end
+
+function UI.CloseAddonSettingsWindow()
+    local panel = addonSettingsWindow
+    if not panel then return end
+    local ns = T.GetNamespace()
+    if ns and ns.QFXManagerHost and panel.host then ns.QFXManagerHost.Hide(panel.host) end
+    panel:Hide()
+end
+
+function UI.OpenAddonSettingsWindow(name, tabKey)
+    local provider = AM.Registry.GetEmbeddedSettings and AM.Registry.GetEmbeddedSettings(name)
+    if not provider then return false end
+    local W = UI.GetWidgets()
+    if not W or W:InCombatLocked() then return false end
+    local panel = addonSettingsWindow
+    if not panel then
+        panel = UI.CreatePanel(UIParent, "QFXAddonManagerAddonSettingsFrame")
+        panel:SetSize(560, 620)
+        panel:SetPoint("CENTER")
+        panel:SetFrameStrata("DIALOG")
+        panel:SetClampedToScreen(true)
+        panel:SetMovable(true)
+        panel:EnableMouse(true)
+        panel:RegisterForDrag("LeftButton")
+        panel:SetScript("OnDragStart", panel.StartMoving)
+        panel:SetScript("OnDragStop", panel.StopMovingOrSizing)
+        panel.banner = W:Banner(panel, { height = 64, logoSize = 28, logoX = 14, logoY = 16, motion = false })
+        panel.title = UI.CreateFont(panel, "GameFontNormalLarge", "")
+        panel.title:SetPoint("TOPLEFT", panel.banner.textLeft, -16)
+        panel.title:SetWidth(panel:GetWidth() - 96)
+        panel.close = W:CloseButton(panel, { size = 26, tooltip = L.CLOSE, onClick = function()
+            UI.CloseAddonSettingsWindow()
+        end })
+        local host = CreateFrame("Frame", nil, panel)
+        host:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, -76)
+        host:SetSize(panel:GetWidth() - 24, panel:GetHeight() - 88)
+        panel.host = host
+        panel:HookScript("OnHide", function()
+            local ns = T.GetNamespace()
+            if ns and ns.QFXManagerHost then ns.QFXManagerHost.Hide(host) end
+        end)
+        panel:Hide()
+        addonSettingsWindow = panel
+        UI.addonSettingsWindow = panel
+    end
+    local ns = GetConfigNamespace()
+    if not ns or not ns.QFXManagerHost then return false end
+    local context = { Widgets = W, Refresh = ns.QFXManagerHost.Refresh,
+        Rebuild = function() UI.OpenAddonSettingsWindow(name, tabKey) end }
+    local embedded = provider(context)
+    if not embedded then return false end
+    local item = AM.GetSelectedItem()
+    local title = item and (item.primary or item.name) == name and item.title
+        or (AM.Registry.Get(name) and AM.Registry.Get(name).title) or name
+    UI.SetLabelText(panel.title, title)
+    panel:Show()
+    if not ns.QFXManagerHost.Show(panel.host, "@addon:" .. name, embedded) then
+        panel:Hide()
+        return false
+    end
+    if tabKey then ns.QFXManagerHost.SelectTab(tabKey) end
+    W:AnimateEntrance(panel.host, { duration = 0.2 })
+    return true
 end
 
 function UI.OpenEmbeddedSettings(tabKey)
     local item = AM.GetSelectedItem()
-    local key = UI.GetEmbeddedSettingsKey(item)
+    if item and not item.missing and item.type ~= "toolboxFeature" then
+        local name = item.primary or item.name
+        if name and AM.Registry.GetEmbeddedSettings and AM.Registry.GetEmbeddedSettings(name) then
+            return UI.OpenAddonSettingsWindow(name, tabKey)
+        end
+    end
+    local key = UI.toolboxSettingsKey
     if key and tabKey then UI.embeddedRequestedTab = { key = key, tab = tabKey } end
     if not key or UI.GetWidgets():InCombatLocked() then return end
     UI.selectedModeSettings = nil
     if UI.RefreshModeControls then UI.RefreshModeControls() end
-    UI.toolboxSettingsKey = key
     UI.RefreshToolboxSettings()
 end
 
-function UI.OpenSelectedNativeOptions(item)
-    if not item or item.missing or item.type == "toolboxFeature" then return end
+-- One click entry: dedicated page for the two retained exceptions, otherwise
+-- the addon's own native options window.
+function UI.OpenAddonOptions(item)
+    if not item or item.missing or item.type == "toolboxFeature" then return false end
     local name = item.primary or item.name
-    local registration = AM.Registry.Get(name)
+    if not name then return false end
     local widgets = UI.GetWidgets and UI.GetWidgets()
-    if registration and registration.nativeOptions and registration.openOptions
-        and not (widgets and widgets:InCombatLocked()) then
-        AM.OpenRegisteredOptions(name)
+    if widgets and widgets:InCombatLocked() then return false end
+    local window = UI.addonSettingsWindow
+    if window and window.host and window.host.qfxToolboxState
+        and window.host.qfxToolboxState.key ~= "@addon:" .. name then
+        UI.CloseAddonSettingsWindow()
     end
+    if AM.Registry.GetOpenOptions and AM.Registry.GetOpenOptions(name) then
+        return AM.OpenRegisteredOptions(name)
+    end
+    return false
 end
 
-function UI.RefreshExternalSettings(item)
-    local key = UI.GetEmbeddedSettingsKey(item)
-    local identity = item and ((item.type or "") .. ":" .. (item.key or item.name or "") .. (item.missing and ":missing" or ""))
-    if UI.externalDetailKey ~= identity then
-        UI.externalDetailKey, UI.externalAutoKey = identity, nil
-        if key or not T.IsSummary(UI.toolboxSettingsKey) then UI.HideToolboxSettings() end
-        -- Cards whose settings live in a standalone window (openOptions
-        -- without embeddedSettings, for example QFXSkillAlerts) open with the
-        -- selection, mirroring toolbox modules; combat keeps the selection
-        -- only. Adapted plugins appear as module (or group) cards, so decide
-        -- by the registry entry, not by the display type.
-        if not key and item and not item.missing and item.type ~= "toolboxFeature" then
-            local name = item.primary or item.name
-            local registration = AM.Registry.Get(name)
-            local widgets = UI.GetWidgets and UI.GetWidgets() or nil
-            if name and AM.Registry.GetOpenOptions and AM.Registry.GetOpenOptions(name)
-                and not (registration and registration.nativeOptions)
-                and not (widgets and widgets.InCombatLocked and widgets:InCombatLocked()) then
-                AM.OpenRegisteredOptions(name)
-            end
-        end
-    end
-    if key and UI.externalAutoKey ~= key then
-        UI.OpenEmbeddedSettings()
-        if UI.toolboxSettingsKey == key then UI.externalAutoKey = key end
-    elseif UI.toolboxSettingsKey and (T.IsSummary(UI.toolboxSettingsKey) or UI.toolboxSettingsKey == key) then
+function UI.OpenSelectedNativeOptions(item)
+    return UI.OpenAddonOptions(item)
+end
+
+function UI.RefreshExternalSettings()
+    if UI.toolboxSettingsKey and T.IsSummary(UI.toolboxSettingsKey) then
         UI.RefreshToolboxSettings()
     else
         UI.HideToolboxSettings()
@@ -154,8 +225,7 @@ function UI.RefreshToolboxSettings()
     local item, ns, W = AM.GetSelectedItem(), T.GetNamespace(), UI.GetWidgets()
     local key = UI.toolboxSettingsKey
     if not key then UI.HideToolboxSettings(); return end
-    local embeddedKey = UI.GetEmbeddedSettingsKey(item)
-    if not T.IsSummary(key) and key ~= embeddedKey and (not UI.IsToolboxDetail() or not item or item.key ~= key) then UI.HideToolboxSettings(); return end
+    if not T.IsSummary(key) and (not UI.IsToolboxDetail() or not item or item.key ~= key) then UI.HideToolboxSettings(); return end
     local switches = key == "@switches"
     local panel, other
     if switches then
@@ -170,24 +240,13 @@ function UI.RefreshToolboxSettings()
     panel:Show()
     local host, hint = panel.host, panel.hint
     if ns and not ns.QFXManagerHost and not W:InCombatLocked() and ns.EnsureConfigLoaded then ns.EnsureConfigLoaded() end
-    local embedded
-    if key == embeddedKey and ns and ns.QFXManagerHost then
-        local provider = AM.Registry.GetEmbeddedSettings(item.primary or item.name)
-        embedded = provider({ Widgets = W, Refresh = ns.QFXManagerHost.Refresh, Rebuild = UI.RefreshToolboxSettings })
-    end
-    if ns and ns.QFXManagerHost and (key ~= embeddedKey or embedded) then
+    if ns and ns.QFXManagerHost then
         hint.frame:Hide()
-        ns.QFXManagerHost.Show(host, key, embedded)
-        local requested = UI.embeddedRequestedTab
-        if requested and requested.key == key then
-            ns.QFXManagerHost.SelectTab(requested.tab)
-            UI.embeddedRequestedTab = nil
-        end
+        ns.QFXManagerHost.Show(host, key, nil)
         return
     end
     hint.frame:Show()
-    if ns and ns.QFXManagerHost then ns.QFXManagerHost.Hide(host) end
-    local message = key == embeddedKey and string.format(L.EMBEDDED_SETTINGS_UNAVAILABLE, item.title or item.name) or T.GetMessage() or (W:InCombatLocked() and L.COMBAT_LOCKED_TIP or L.TOOLBOX_CONFIG_FAILED)
+    local message = T.GetMessage() or (W:InCombatLocked() and L.COMBAT_LOCKED_TIP or L.TOOLBOX_CONFIG_FAILED)
     if panel.message ~= message then
         panel.message = message
         for _, child in ipairs({ hint.content:GetChildren() }) do child:Hide() end

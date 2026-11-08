@@ -31,7 +31,7 @@ ns.ModuleCategories = {
         key = "utility",
         titleKey = "Utility",
         descKey = "Fast loot, merchant, automatic dialogue handling, and other quality-of-life helpers.",
-        modules = { "fast_loot", "auto_merchant", "merchant_expand", "auto_tank_misdirection", "auto_skip_quiet_dialogs", "damage_meter_reset" },
+        modules = { "fast_loot", "auto_merchant", "merchant_expand", "auto_tank_misdirection", "auto_skip_quiet_dialogs", "damage_meter_reset", "auto_quest" },
     },
 }
 

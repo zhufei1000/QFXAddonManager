@@ -416,8 +416,14 @@ end
 
 function UI.CopyDetailName()
     local panel = UI.detailPanel
-    local title = panel and panel.title
-    local text = title and (title._fullText or title:GetText())
+    local item = QFXAM.GetSelectedItem()
+    if not panel or not item then return end
+    local text = item.titleEN
+    if item.type == "toolboxFeature" then
+        text = UI.GetItemTitle(item)
+    elseif not text or text == "" then
+        text = GetPrimaryName(item) or item.name
+    end
     if not text or text == "" then return end
     local ok, mode = UI.CopyText(text)
     if ok and mode == "clipboard" and panel.copyButton and panel.copyButton._icon then

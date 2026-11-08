@@ -1,4 +1,4 @@
-QFXAddonManager v1.1.14
+QFXAddonManager v1.2.0
 
 本体包含主包 QFXAddonManager 和五个按需子包：QFXAddonManager_Config、QFXAddonManager_Toolbox_Daily、QFXAddonManager_Toolbox_Combat、QFXAddonManager_Toolbox_ChatBar、QFXAddonManager_Libraries_GlowFallback。根目录 QFX_SharedMedia 是必须一起保留的纯素材目录，无独立插件入口。
 
@@ -18,7 +18,9 @@ QFXfocus、PetStatusAlert 和 QFXSkillAlerts 需要独立下载，管理中心�
 
 地图提醒选择“暂时不切换”、关闭或 Esc 后，本次副本内换层、团灭复活和跑尸返回不再重复提醒；正常离开再进入后重新提醒。忽略记录仅保留当前会话，重载或重新登录会重新判断。开启“职业启用”后右键卡片选择职业并保存；关闭职业编辑仍保留已保存规则。
 
-顶部“参数设置”集中 CVar 预设、伤害数字、延时容限和地图入口，在右侧附加设置页显示。“开关设置”在右侧说明栏集中显示开关项。选中有设置的普通模块会自动打开附加页；附加页可单独关闭。搜索同时匹配名称、说明与自定义关键词。顶部可调整界面缩放，语言下拉支持自适应／简体中文／繁體中文／English，选择后经重载生效。
+顶部“参数设置”集中 CVar 预设、伤害数字、延时容限和地图入口，在右侧附加设置页显示。“开关设置”在右侧说明栏集中显示开关项。选中有设置的内置工具会自动打开附加页，附加页可单独关闭。普通接管使用右栏“打开设置”启动插件自带的界面，QFXBeggar 和 QfxUI_Installer 保留专属页面。右栏标题旁的复制按钮复制插件原始英文名称，缺少英文名称时使用目录名。搜索同时匹配名称、说明与自定义关键词。顶部可调整界面缩放，语言下拉支持自适应／简体中文／繁體中文／English，选择后经重载生效。
+
+同一份包支持正式服与无限服。两个客户端分别读取自己的适配文件。内置“自动交接任务”默认关闭，可分别开启接取与交付，并设置 Shift 规则。
 
 主窗口、共享工厂、设置宿主、适配器与预设均由 QFXAddonManager_Config 按需提供。功能包按启用状态／设置请求加载，三语词典与通用 LibSharedMedia-3.0 已内置主包。QFX_SharedMedia 素材由主包启动注册，原名称和媒体路径不变。QFXAddonManager_Libraries_GlowFallback 在发光回退需要时加载。
 

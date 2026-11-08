@@ -127,6 +127,19 @@ ns.ModuleDefaults = {
         },
     },
 
+    auto_quest = {
+        enabled = false,
+        autoAccept = true,
+        autoTurnIn = true,
+        preventMulti = true,
+        ignoreTrivial = false,
+        ignoreOldExpansion = false,
+        acceptShiftEnable = false,
+        acceptShiftSkip = true,
+        turnInShiftEnable = false,
+        turnInShiftSkip = true,
+    },
+
     auto_merchant = {
         enabled = false,
         autoRepair = true,

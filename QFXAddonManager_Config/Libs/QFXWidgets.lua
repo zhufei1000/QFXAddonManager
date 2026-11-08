@@ -1,6 +1,23 @@
 --[[============================================================================
 QFXWidgets -- drop-in settings widget factory for QFX addons (single file).
 
+START HERE -- COMPLETE QFX ADDON SETTINGS WINDOW (ADDON_WINDOW_REVISION=1)
+  Do not assemble only SkinFrame/DualRow and call the window finished.
+  local chrome = W:AddonWindow(frame, {
+      title = "QFXUnitframes", version = ns.version,
+      locale = ns.GetActiveUILanguage and ns.GetActiveUILanguage() or nil,
+      repository = "https://github.com/zhufei1000/QFXUnitframes",
+  })
+  -- Build navigation/pages ONLY inside chrome.content (reserved safe area).
+  -- Included by default: gradient perimeter, QFX logo, meteor watermark,
+  -- title, texture close X, localized author/version, QQ/Discord/GitHub copy
+  -- buttons. Static brand art; motion is explicitly opt-in through Banner.
+  -- W:AddonWindow(frame, newSpec) updates/reuses existing chrome.
+  local complete, missing = W:ValidateAddonWindow(frame)
+  -- Check complete in integration tests; missing contains exact part names.
+  -- Read W.AddonWindowContract for required fields, defaults and return API.
+  -- Low-level helpers below are for inner panels and specialized windows.
+
 HOW TO USE
   1. Copy this file into your addon folder and add it to the .toc.
      Ship Media/addon-power.blp + LICENSE-lucide.txt for addonToggle icons;
@@ -2027,11 +2044,11 @@ end
 -- title, hint, preselected read-only EditBox, footer close button). Esc,
 -- backdrop clicks and the X all dismiss it; no Blizzard popup involved.
 local function InstallCopyDialog(W)
-    if (tonumber(W.COPY_DIALOG_REVISION) or 0) >= 1 then return end
+    if (tonumber(W.COPY_DIALOG_REVISION) or 0) >= 2 then return end
     local Font, QfxSurface, QfxBorder = W.Font, W.Surface, W.Border
 
     --   opts = { title, hint, closeText, closeTooltip, width, height,
-    --            multiline, selectAll = true, onClose }
+    --            multiline, selectAll = true, onClose, owner }
     -- Returns the dialog; dialog.editBox is the box, dialog:Close() hides it.
     function W:CopyDialog(text, opts)
         opts = opts or {}
@@ -2040,7 +2057,9 @@ local function InstallCopyDialog(W)
 
         local dim = CreateFrame("Frame", nil, UIParent)
         dim:SetAllPoints()
-        dim:SetFrameStrata("DIALOG")
+        dim:SetFrameStrata("FULLSCREEN_DIALOG")
+        local ownerLevel = opts.owner and opts.owner:GetFrameLevel() or 0
+        dim:SetFrameLevel(math.max(300, ownerLevel + 100))
         dim:EnableMouse(true)
         if dim.EnableKeyboard then dim:EnableKeyboard(true) end
         local dimTex = dim:CreateTexture(nil, "BACKGROUND")
@@ -2049,6 +2068,7 @@ local function InstallCopyDialog(W)
 
         local w = opts.width or 420
         local panel = CreateFrame("Frame", nil, dim)
+        panel:SetFrameLevel(dim:GetFrameLevel() + 10)
         panel:SetSize(w, 10)
         panel:SetPoint("CENTER", dim, "CENTER", 0, 0)
         panel:EnableMouse(true)
@@ -2079,6 +2099,7 @@ local function InstallCopyDialog(W)
 
         local boxH = tonumber(opts.height) or 26
         local box = CreateFrame("EditBox", nil, panel)
+        box:SetFrameLevel(panel:GetFrameLevel() + 10)
         box:SetSize(w - 28, boxH)
         box:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -10)
         box:SetAutoFocus(false)
@@ -2105,6 +2126,8 @@ local function InstallCopyDialog(W)
             tooltip = opts.closeTooltip, onClick = Finish })
         local okButton = QfxDialogButton(self, panel, opts.closeText or rawget(_G, "OKAY") or "OK",
             -14, S.accent, Finish)
+        close:SetFrameLevel(panel:GetFrameLevel() + 20)
+        okButton:SetFrameLevel(panel:GetFrameLevel() + 20)
 
         panel:SetHeight(12 + 16 + 8 + hintH + 10 + boxH + 12 + 24 + 12)
         dim:SetScript("OnKeyDown", function(_, key) if key == "ESCAPE" then Finish() end end)
@@ -2117,7 +2140,7 @@ local function InstallCopyDialog(W)
         return dim
     end
 
-    W.COPY_DIALOG_REVISION = 1
+    W.COPY_DIALOG_REVISION = 2
 end
 
 
@@ -2786,6 +2809,176 @@ local function InstallKeybindCapture(W)
     W.KEYBIND_CAPTURE_REVISION = 1
 end
 
+-- Complete settings-window composition. Keep business state and navigation in
+-- the consumer; keep the visual inventory and contact lifecycle in one place.
+local function InstallAddonWindow(W)
+    if (tonumber(W.ADDON_WINDOW_REVISION) or 0) >= 1 then return end
+    local labels = {
+        enUS = { author = "Author: ", name = "Qunfeixuan", version = "Version", qq = "QQ Group",
+            close = "Close", hint = "Press Ctrl+C to copy the selected text.", contact = "Click to copy" },
+        zhCN = { author = "作者：", name = "群飞轩", version = "版本", qq = "QQ群",
+            close = "关闭", hint = "按 Ctrl+C 复制已选中的内容。", contact = "点击复制" },
+        zhTW = { author = "作者：", name = "群飛軒", version = "版本", qq = "QQ群組",
+            close = "關閉", hint = "按 Ctrl+C 複製已選取的內容。", contact = "點擊複製" },
+    }
+    W.AddonWindowContract = {
+        revision = 1, required = { "title", "version" }, minWidth = 520,
+        includes = { "perimeter", "logo", "meteor", "title", "close", "author", "version", "contacts", "content" },
+        optional = { "locale", "author", "repository", "contacts", "headerHeight", "onClose" },
+        contactEntry = { "key", "title", "value", "icon or texture" }, maxContacts = 3,
+        defaults = { headerHeight = 64, footerHeight = 20, padding = 16,
+            qq = "1049855225", discord = "https://discord.gg/HVJ2y4v7k4", github = "https://github.com/zhufei1000" },
+        returns = { "content", "banner", "title", "close", "footer", "Update(spec)", "Validate()" },
+    }
+
+    function W:AddonWindow(frame, spec)
+        assert(frame and type(spec) == "table", "AddonWindow needs a frame and a spec")
+        local state = frame.__qfxAddonWindow
+        if state then state:Update(spec); return state end
+        local factory = self
+        state = { frame = frame, spec = {}, contactButtons = {} }
+        frame.__qfxAddonWindow = state
+        self:SkinFrame(frame)
+        self:Perimeter(frame)
+        state.bannerOptions = { height = math.max(64, tonumber(spec.headerHeight) or 64),
+            logoSize = 38, logoX = 18, logoY = 12, motion = false }
+        state.banner = self:Banner(frame, state.bannerOptions)
+        state.title = frame.TitleText or self.Font(frame, 16)
+        state.title:ClearAllPoints()
+        state.title:SetPoint("TOPLEFT", frame, "TOPLEFT", state.banner.textLeft, -25)
+        state.title:SetJustifyH("LEFT")
+        state.title:SetWordWrap(false)
+        state.closeOptions = { onClick = function()
+            if state.spec.onClose then state.spec.onClose(frame) else frame:Hide() end
+        end }
+        state.close = self:CloseButton(frame, state.closeOptions)
+        state.closeEnter, state.closeLeave = state.close:GetScript("OnEnter"), state.close:GetScript("OnLeave")
+        state.content = CreateFrame("Frame", nil, frame)
+        state.footer = CreateFrame("Frame", nil, frame)
+        state.footer:SetHeight(20)
+        state.footer:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 18, 8)
+        state.footer:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, 8)
+        state.footer.author = self.Font(state.footer, self.Theme.labelSize)
+        state.footer.author:SetPoint("LEFT", state.footer, "LEFT", 0, 0)
+        state.footer.author:SetWidth(160)
+        state.footer.author:SetJustifyH("LEFT")
+        state.footer.author:SetWordWrap(false)
+        state.footer.version = self.Font(state.footer, self.Theme.labelSize)
+        state.footer.version:SetPoint("RIGHT", state.footer, "RIGHT", 0, 0)
+        state.footer.version:SetWidth(160)
+        state.footer.version:SetJustifyH("RIGHT")
+        state.footer.version:SetWordWrap(false)
+        state.footer.buttons = state.contactButtons
+
+        function state:CloseCopyDialog()
+            if self.copyDialog then self.copyDialog:Close(); self.copyDialog = nil end
+        end
+        function state:Update(nextSpec)
+            for key, value in pairs(nextSpec or {}) do self.spec[key] = value end
+            local cfg = self.spec
+            local locale = cfg.locale or (GetLocale and GetLocale()) or "enUS"
+            local text = labels[locale] or labels.enUS
+            if self.locale ~= locale then self:CloseCopyDialog() end
+            self.locale, self.labels = locale, text
+            self.title:SetText(cfg.title or "")
+            self.closeOptions.tooltip = text.close
+            self.close:SetScript("OnEnter", self.closeEnter)
+            self.close:SetScript("OnLeave", self.closeLeave)
+            factory.AttachTooltip(self.close, text.close)
+            self.footer.author:SetText(text.author .. (cfg.author or text.name))
+            self.footer.version:SetText(text.version .. ": " .. tostring(cfg.version or ""))
+            local tokens = factory:Tokens()
+            self.title:SetTextColor((unpack or table.unpack)(tokens.accent))
+            self.footer.author:SetTextColor((unpack or table.unpack)(tokens.textMuted))
+            self.footer.version:SetTextColor((unpack or table.unpack)(tokens.textMuted))
+            local defaults = factory.AddonWindowContract.defaults
+            local contacts = cfg.contacts
+            if contacts == nil then
+                contacts = {
+                    { key = "qq", title = text.qq, value = defaults.qq, icon = "contact-qq.blp" },
+                    { key = "discord", title = "Discord", value = defaults.discord, icon = "contact-discord.blp" },
+                    { key = "github", title = "GitHub", value = cfg.repository or defaults.github, icon = "contact-github.blp" },
+                }
+            end
+            self.contacts = contacts or {}
+            local brand = factory.Brand or {}
+            local media = brand.contactRoot or (type(brand.logo) == "string" and brand.logo:match("^(.*\\)"))
+                or "Interface\\AddOns\\QFXWidgets\\Media\\"
+            for _, button in ipairs(self.contactButtons) do button:Hide() end
+            for index, contact in ipairs(self.contacts) do
+                local button = self.contactButtons[index]
+                if not button then
+                    button = factory:IconButton(self.footer, { size = 20, alpha = .75, hoverAlpha = 1,
+                        onClick = function(clicked)
+                            local item = clicked.contact
+                            self:CloseCopyDialog()
+                            self.copyDialog = factory:CopyDialog(item.value, { title = item.title,
+                                hint = self.labels.hint, closeText = self.labels.close, closeTooltip = self.labels.close,
+                                owner = frame })
+                            self.copyDialog:SetScale(frame:GetEffectiveScale() / (UIParent:GetEffectiveScale() or 1))
+                        end })
+                    self.contactButtons[index] = button
+                    button.contactEnter, button.contactLeave = button:GetScript("OnEnter"), button:GetScript("OnLeave")
+                end
+                button.contact = contact
+                button._icon:SetTexture(contact.texture or (media .. (contact.icon or "contact-github.blp")), "CLAMP", "CLAMP", "TRILINEAR")
+                button:ClearAllPoints()
+                button:SetPoint("LEFT", self.footer, "LEFT", 176 + (index - 1) * 28, 0)
+                button:SetScript("OnEnter", button.contactEnter)
+                button:SetScript("OnLeave", button.contactLeave)
+                factory.AttachTooltip(button, contact.title, contact.value .. "\n" .. text.contact)
+                button:Show()
+            end
+            self:Layout()
+        end
+        function state:Layout()
+            local header = math.max(64, tonumber(self.spec.headerHeight) or 64)
+            self.bannerOptions.height = header
+            self.banner:Layout()
+            self.content:ClearAllPoints()
+            self.content:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -header - 16)
+            self.content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 36)
+            self.title:SetWidth(math.max(1, frame:GetWidth() - self.banner.textLeft - 52))
+        end
+        function state:Validate() return factory:ValidateAddonWindow(frame) end
+        frame:HookScript("OnHide", function() state:CloseCopyDialog() end)
+        frame:HookScript("OnSizeChanged", function() state:Layout() end)
+        state:Update(spec)
+        return state
+    end
+
+    function W:ValidateAddonWindow(frame)
+        local missing, state = {}, frame and frame.__qfxAddonWindow
+        local function Check(ok, part) if not ok then missing[#missing + 1] = part end end
+        if not state then return false, { "AddonWindow" } end
+        local banner, footer = state.banner or {}, state.footer or {}
+        Check(type(state.spec.title) == "string" and state.spec.title ~= "", "title")
+        Check(state.spec.version ~= nil and tostring(state.spec.version) ~= "", "version")
+        Check(frame:GetWidth() >= self.AddonWindowContract.minWidth, "minWidth")
+        local perimeter = frame._qfxPerimeter
+        local borderShown = perimeter and #perimeter == 10
+        for _, strip in ipairs(perimeter or {}) do if not strip:IsShown() then borderShown = false end end
+        Check(borderShown, "perimeter")
+        Check(banner.logo and banner.logo:IsShown() and banner.logo:GetTexture(), "logo")
+        Check(banner.watermark and banner.watermark:IsShown() and banner.watermark:GetTexture(), "meteor")
+        Check(state.title and state.title:IsShown() and state.title:GetText() ~= "", "titleRegion")
+        Check(state.close and state.close:IsShown(), "close")
+        Check(footer.author and footer:IsShown() and footer.author:IsShown() and footer.author:GetText() ~= "", "author")
+        Check(footer.version and footer:IsShown() and footer.version:IsShown() and footer.version:GetText() ~= "", "versionRegion")
+        Check(state.content and state.content:IsShown() and state.content:GetParent() == frame, "content")
+        if state.spec.contacts ~= false then
+            Check(#state.contacts > 0 and #state.contacts <= 3, "contacts")
+            for index, contact in ipairs(state.contacts) do
+                local button = state.contactButtons[index]
+                Check(button and button:IsShown() and button._icon:GetTexture()
+                    and type(contact.value) == "string" and contact.value ~= "", "contacts[" .. index .. "]")
+            end
+        end
+        return #missing == 0, missing
+    end
+    W.ADDON_WINDOW_REVISION = 1
+end
+
 local VERSION = 51 -- factory singleton version; additive capabilities have their own revisions
 local F = rawget(_G, "QFXWidgets")
 
@@ -2805,6 +2998,7 @@ if type(F) == "table" and (tonumber(F.VERSION) or 0) >= VERSION then
     InstallVariableListRows(F)
     InstallCheckGridAtlas(F)
     InstallKeybindCapture(F)
+    InstallAddonWindow(F)
     if ns then ns.QFXWidgets = F end
     return -- newer copy already loaded: reuse it (no duplicate tables/frames)
 end
@@ -7551,3 +7745,5 @@ InstallVariableListRows(F)
 InstallCheckGridAtlas(F)
 
 InstallKeybindCapture(F)
+
+InstallAddonWindow(F)

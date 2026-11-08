@@ -208,6 +208,7 @@ function GCD:GetCooldownInfo(snapshot)
         info = ns.GCDService:GetSnapshot()
     end
     if type(info) ~= "table" then return nil, nil end
+    if info.durationObject then return nil, nil, info.durationObject end
 
     local start = info.startTime
     local detectedDuration = info.duration
@@ -229,13 +230,18 @@ function GCD:TryStart(snapshot)
         return
     end
 
+    local start, duration, durationObject = self:GetCooldownInfo(snapshot)
+    local cooldown = self.frame.cooldown
+    if durationObject then
+        if type(cooldown.SetCooldownFromDurationObject) ~= "function" then return end
+    else
+        if type(start) ~= "number" or type(duration) ~= "number" or duration <= 0 then return end
+        if self.active and self.lastStart and math.abs(start - self.lastStart) < 0.03 then return end
+    end
+
     local now = GetTime()
     if now - (self.lastEventAt or 0) < 0.12 then return end
     self.lastEventAt = now
-
-    local start, duration = self:GetCooldownInfo(snapshot)
-    if type(start) ~= "number" or type(duration) ~= "number" or duration <= 0 then return end
-    if self.active and math.abs(start - (self.lastStart or 0)) < 0.03 then return end
 
     self.startTime = start
     self.duration = duration
@@ -243,11 +249,15 @@ function GCD:TryStart(snapshot)
     self.active = true
 
     self.frame.texture:Hide()
-    self.frame.cooldown:Show()
+    cooldown:Show()
     self:RefreshRingTexture()
     self:RefreshColor(db.gcdActiveAlpha or 0.9)
-    self.frame.cooldown:SetScript("OnCooldownDone", GCD.OnCooldownDone)
-    self.frame.cooldown:SetCooldown(start, duration)
+    cooldown:SetScript("OnCooldownDone", GCD.OnCooldownDone)
+    if durationObject then
+        cooldown:SetCooldownFromDurationObject(durationObject)
+    else
+        cooldown:SetCooldown(start, duration)
+    end
     self:RefreshVisibility()
 end
 

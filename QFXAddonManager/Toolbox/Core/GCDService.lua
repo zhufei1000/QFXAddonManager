@@ -4,6 +4,8 @@ local _, ns = ...
 
 local EVENT = "SPELL_UPDATE_COOLDOWN"
 local OWNER = "QFXToolBox:GCDService"
+-- Forever uses the Classic GCD spell even though its cooldown API is Mainline.
+local GCD_SPELL_ID = ns.Compat.IsForever() and 29515 or 61304
 local CACHE_WINDOW = 0.03
 
 local service = ns.GCDService or {}
@@ -34,19 +36,31 @@ local SNAPSHOT = {}
 
 local function ReadCooldown(now)
     if not C_Spell or type(C_Spell.GetSpellCooldown) ~= "function" then return nil end
-    local ok, info = pcall(C_Spell.GetSpellCooldown, 61304)
+    local ok, info = pcall(C_Spell.GetSpellCooldown, GCD_SPELL_ID)
     if not ok or type(info) ~= "table" then return nil end
 
     local startTime, duration = info.startTime, info.duration
-    if not IsAccessibleNumber(startTime) or not IsAccessibleNumber(duration) then return nil end
-    if startTime <= 0 or duration <= 0.05 then return nil end
-    if IsAccessibleNumber(now) and now > 0 and now >= startTime + duration then return nil end
+    local durationObject
+    if IsAccessibleNumber(startTime) and IsAccessibleNumber(duration) then
+        if startTime <= 0 or duration <= 0.05 or now >= startTime + duration then return nil end
+    else
+        -- isActive is public even when the timing fields are restricted.
+        -- Pass the duration through to the native Cooldown without reading it.
+        local isActive = info.isActive
+        if IsSecret(isActive) or isActive ~= true or type(C_Spell.GetSpellCooldownDuration) ~= "function" then
+            return nil
+        end
+        durationObject = C_Spell.GetSpellCooldownDuration(GCD_SPELL_ID)
+        if not durationObject then return nil end
+        startTime, duration = nil, nil
+    end
 
     local modRate = IsAccessibleNumber(info.modRate) and info.modRate or 1
     local isEnabled = info.isEnabled
     if IsSecret(isEnabled) or type(isEnabled) ~= "boolean" then isEnabled = nil end
     SNAPSHOT.startTime = startTime
     SNAPSHOT.duration = duration
+    SNAPSHOT.durationObject = durationObject
     SNAPSHOT.modRate = modRate
     SNAPSHOT.isEnabled = isEnabled
     SNAPSHOT.capturedAt = now

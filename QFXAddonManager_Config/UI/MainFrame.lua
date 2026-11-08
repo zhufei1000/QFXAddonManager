@@ -399,6 +399,7 @@ function UI.Show()
 end
 
 function UI.Hide()
+    if UI.CloseAddonSettingsWindow then UI.CloseAddonSettingsWindow() end
     if UI.frame then UI.frame:Hide() end
 end
 

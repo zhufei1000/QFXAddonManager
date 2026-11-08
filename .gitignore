@@ -22,6 +22,7 @@
 !/tools/validate_class_card_picker.lua
 !/tools/validate_forever_compat.lua
 !/tools/validate_forever_toolbox.lua
+!/tools/toc_lua_files.lua
 !/tests/
 !/docs/
 /docs/*
@@ -30,6 +31,9 @@
 !/docs/SHARED_MEDIA.md
 !/docs/ENGLISH_UI_LABELS.md
 !/docs/FOREVER_COMPAT.md
+!/docs/CURSEFORGE_FOREVER_TOP100.md
+!/docs/ADDON_OPTIONS_ENTRY.md
+!/docs/AUTO_QUEST.md
 !/docs/RELEASE_*.md
 
 **/__pycache__/

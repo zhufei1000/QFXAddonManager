@@ -24,11 +24,8 @@ local M = {
     { key = "details", title = "Details 伤害统计", category = "combat", group = "details", primary = "Details", tip = "伤害统计与战斗分析模块。" },
     { key = "dbm", title = "DBM 首领报警", category = "raid", group = "dbm", primary = "DBM-Core", tip = "首领技能报警、计时条与副本提示。" },
     { key = "bigwigs", title = "BigWigs 首领报警", category = "raid", group = "bigwigs", primary = "BigWigs", tip = "轻量首领报警与地下城提示。" },
-    { key = "weakauras", title = "WeakAuras 光环提醒", category = "ui", group = "weakauras", primary = "WeakAuras", tip = "光环、图标、进度条与自定义提醒。" },
     { key = "plater", title = "Plater 姓名板", category = "ui", group = "plater", primary = "Plater", tip = "姓名板美化、施法条与目标信息。" },
     { key = "omnicd", title = "OmniCD 队友冷却", category = "combat", group = "omnicd", primary = "OmniCD", tip = "队友技能冷却监控。" },
-    { key = "mdt", title = "MDT 大秘境路线", category = "raid", group = "mdt", primary = "MythicDungeonTools", tip = "大秘境路线规划与怪物数据。" },
-    { key = "raiderio", title = "Raider.IO 大秘境数据", category = "raid", group = "raiderio", primary = "RaiderIO", tip = "大秘境分数与角色数据。数据库子模块默认隐藏。" },
     { key = "cell", title = "Cell 团队框架", category = "raid", group = "cell", primary = "Cell", tip = "团队框架与治疗辅助。" },
 
     { key = "elvui", title = "ElvUI 界面整合", category = "ui", primary = "ElvUI", addons = { "ElvUI", "ElvUI_Options" }, tip = "完整界面整合与布局控制。" },
@@ -51,8 +48,7 @@ local tags = {
     lycheegroup = { "chat" },
     petstatusalert = { "combat" }, qfxsystembar = { "tool" },
     details = { "raid" }, dbm = { "combat" }, bigwigs = { "combat" },
-    weakauras = { "combat" }, plater = { "combat" },
-    omnicd = { "raid" }, mdt = { "map" }, cell = { "class" },
+    plater = { "combat" }, omnicd = { "raid" }, cell = { "class" },
     elvui = { "combat" }, bartender = { "combat" }, dominos = { "combat" },
     leatrix_plus = { "ui" },
 }

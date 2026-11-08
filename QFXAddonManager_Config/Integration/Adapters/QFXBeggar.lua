@@ -37,4 +37,4 @@ local function Settings(ctx)
     return definition
 end
 A.Register("QFXBeggar", { category = "equipment", categories = {"raid"},
-    embeddedSettings = Settings, openOptions = function() A.OpenEmbeddedSettings("QFXBeggar") end })
+    embeddedSettings = Settings, openOptions = function(tabKey) return A.OpenEmbeddedSettings("QFXBeggar", tabKey) end })

@@ -18,12 +18,15 @@
   - `QFXAddonManager_Libraries_GlowFallback`
 - `QFXAM.IsForever()` 与 `Compat.IsForever()` 使用 Interface 号判断。
 - `Compat.IsRetail12x()`、`Compat.IsRetail1207OrNewer()`、`Compat.IsSupportedRetailInterface()` 把 `16001` 归入 12.x 家族，确保 GlowService 等机密值分支在无限中仍走受限客户端路径。
+- 自身定位与 GCD 历史共用 `GCDService`。无限使用 `29515`，正式服使用 `61304`，两端通过 `C_Spell` 查询。无限实机施放灵猴守护后，`61304` 返回 `nil`，`29515` 返回 `isActive=true`、`duration=1.5`。
 - 不新增 `_Camelot.toc`；同一份包通过运行时分支同时支持正式服和无限。`QFX_SharedMedia` 的构建 TOC 自动继承主 TOC 的 Interface 行。
+- CurseForge 无限服热度前 100 项的原生设置适配使用同包 TOC 分支标记。无限服专属脚本仅在 `camelot` 加载，正式服专属脚本仅在 `standard` 加载。详见 [无限服热度榜适配](CURSEFORGE_FOREVER_TOP100.md)。
 
 ## 模式
 
 - 内部模式 key 仍为 `mythic`，存档和模式名单不变。
 - 无限下 `L.MODE_MYTHIC` 显示为“地下城／地城／Dungeon”，选择标签显示为“地下城禁用／地城停用／Edit Dungeon”，排除提示同步改名。
+- 无限客户端的中文字体缺少 `U+2713` 勾号，当前模式按钮使用暴雪勾选纹理而不是 Unicode 字符，避免显示为方块。
 - 四个模式按钮、双击应用、地图提醒、职业限制和全局手动开关逻辑不变。
 
 ## 地图预设
@@ -38,7 +41,9 @@
 
 - 无限只显示经典九职业，不显示死亡骑士、武僧、恶魔猎手、唤魔师。
 - 无限没有现代专精：
-  - 玩家属性面板切为经典属性：主属性、爆击、命中、护甲、躲闪、招架、格挡、防御。
+  - 玩家属性面板切为经典属性：主属性、爆击、急速、命中、护甲、躲闪、招架、格挡、防御。该客户端的 `GetHaste` 可能始终为 0，急速按 Camelot 角色面板口径读取近战 `GetMeleeHaste`、远程 `GetRangedHaste`（基础值加弹药加成）和法术 `UnitSpellHaste`，取三者最大值，不再按纯经典面板隐藏。
+  - 防御按 Camelot 角色面板读取 `UnitDefenseSkill` 的基础值加修正值；命中按角色面板叠加 `CR_HIT_MELEE/RANGED/SPELL` 等级加成与 `GetHitModifier`／`GetRangedHitModifier`／`GetSpellHitModifier`，取三者最大值。
+  - 无限下不显示百分比后的具体等级数值，设置页也不提供“显示具体数值”开关；旧存档中的 `showRating` 保留但不参与无限显示。
   - 主属性按职业回退；德鲁伊猫／熊形态使用敏捷。
   - 防御属性默认显示，不再依赖 `GetSpecializationRole`。
   - 攻击距离按职业／形态选择经典满级技能探测；不再依赖专精 ID。
@@ -60,7 +65,7 @@
 ## 验证
 
 - `tools/validate_forever_compat.lua`：版本门、九职业、模式改名、经典地图预设、模块裁剪。
-- `tools/validate_forever_toolbox.lua`：经典属性读取、主属性／形态、攻击距离探测。
+- `tools/validate_forever_toolbox.lua`：经典属性读取、主属性／形态、攻击距离探测和 GCD ID。
 - `tools/validate_*.lua` 的正式服基线继续通过。
 - `python tools/build_addon.py` 校验 TOC／打包清单；`python tools/audit_localization.py` 校验词典。
 

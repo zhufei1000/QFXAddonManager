@@ -9,13 +9,13 @@ if A.IsInstalled("AbilityTimeline") then
         "Better Timeline（目錄名 AbilityTimeline）增強暴雪首領技能時間軸，可調整計時條、圖示、文字、顏色與提醒，並提供首領警報聯動。") }
 end
 if A.IsInstalled("Baganator") then
-    catalog[#catalog + 1] = { name = "Baganator", category = "equipment", categories = {"ui"}, settings = A.BaganatorSettings, slash = {"Baganator"}, source = "baganator", description = Text(
+    catalog[#catalog + 1] = { name = "Baganator", category = "equipment", categories = {"ui"}, slash = {"Baganator"}, source = "baganator", description = Text(
         "A bag and bank interface with single-view and category layouts, item search, sorting and item widgets. Requires Syndicator for inventory tracking across characters.",
         "提供单页或分类式背包与银行界面，支持物品搜索、整理、分类及角标。依赖 Syndicator 记录其他角色的库存。",
         "提供單頁或分類式背包與銀行介面，支援物品搜尋、整理、分類及角標。依賴 Syndicator 記錄其他角色的庫存。") }
 end
 if A.IsInstalled("Syndicator") then
-    catalog[#catalog + 1] = { name = "Syndicator", category = "equipment", categories = {"tool"}, settings = A.SyndicatorSettings, slash = {"Syndicator"}, source = "syndicator", description = Text(
+    catalog[#catalog + 1] = { name = "Syndicator", category = "equipment", categories = {"tool"}, slash = {"Syndicator"}, source = "syndicator", description = Text(
         "Tracks items across characters, banks, guild banks, mail, auctions and the Warband. Adds inventory, gold and currency information to tooltips and powers Baganator's inventory data. /syns searches tracked items.",
         "跨角色记录背包、银行、公会银行、邮件、拍卖及战团库存，在提示中显示物品所在位置、金币和货币；也为 Baganator 提供库存数据。可用 /syns 搜索已记录的物品。",
         "跨角色記錄背包、銀行、公會銀行、郵件、拍賣及戰團庫存，在提示中顯示物品所在位置、金幣和貨幣；也為 Baganator 提供庫存資料。可用 /syns 搜尋已記錄的物品。") }
@@ -27,7 +27,7 @@ if A.IsInstalled("BlizzMove") then
         "讓支援的暴雪視窗可拖動、縮放，並可永久儲存位置或比例。拖動標題移動，Ctrl 加滾輪縮放；Shift 右鍵重設位置，Ctrl 右鍵重設比例。除錯子模組隨主插件合併管理。") }
 end
 if A.IsInstalled("BugSack") then
-    catalog[#catalog + 1] = { name = "BugSack", category = "tool", settings = A.BugSackSettings, slash = {"BugSack"}, source = "bugsack", description = Text(
+    catalog[#catalog + 1] = { name = "BugSack", category = "tool", slash = {"BugSack"}, source = "bugsack", description = Text(
         "Displays Lua errors captured by BugGrabber, including debug stacks and copyable reports. Provides minimap and data-broker access. Requires !BugGrabber.",
         "集中查看 BugGrabber 捕获的 Lua 错误，提供调用堆栈、可复制报告及小地图／数据条入口，必须搭配 !BugGrabber。",
         "集中查看 BugGrabber 捕獲的 Lua 錯誤，提供呼叫堆疊、可複製報告及小地圖／資料列入口，必須搭配 !BugGrabber。") }
@@ -39,13 +39,13 @@ if A.IsInstalled("!BugGrabber") then
         "捕獲遊戲 Lua 錯誤並交給錯誤顯示插件，通常與 BugSack 搭配，用於向插件作者提供完整報告。\n\n它負責背景收集，沒有獨立圖形設定頁。查看與複製錯誤請使用 BugSack。") }
 end
 if A.IsInstalled("BtWQuests") then
-    catalog[#catalog + 1] = { name = "BtWQuests", category = "map", addons = {"BtWQuests", "BtWQuestsMidnight"}, settings = A.BtWQuestsSettings, source = "btw-quests", description = Text(
+    catalog[#catalog + 1] = { name = "BtWQuests", category = "map", addons = {"BtWQuests", "BtWQuestsMidnight"}, source = "btw-quests", description = Text(
         "Shows quest-chain progress, prerequisites and follow-up quests as connected paths. Expansion modules supply their own quest data; the installed Midnight module is managed with the main addon. /btwquests opens the quest browser.",
         "以关联路线显示任务链进度、前置要求与后续任务，便于追查剧情解锁条件。各资料片使用独立任务数据，已安装的 Midnight 数据随主插件合并管理。可用 /btwquests 打开任务浏览窗口。",
         "以關聯路線顯示任務鏈進度、前置要求與後續任務，便於追查劇情解鎖條件。各資料片使用獨立任務資料，已安裝的 Midnight 資料隨主插件合併管理。可用 /btwquests 開啟任務瀏覽視窗。") }
 end
 if A.IsInstalled("CityGuide") then
-    catalog[#catalog + 1] = { name = "CityGuide", category = "map", settings = A.CityGuideSettings, slash = {"CITYGUIDE"}, slashArg = "settings", source = "city-guide", description = Text(
+    catalog[#catalog + 1] = { name = "CityGuide", category = "map", slash = {"CITYGUIDE"}, slashArg = "settings", source = "city-guide", description = Text(
         "Adds city-map labels for banks, auction houses, trainers, portals and other services. Supports labels, icons, profession filtering, decor locations and per-city customization.",
         "在主城地图标注银行、拍卖行、专业训练师、传送门等服务，支持文字／图标显示、专业过滤、装饰物地点及各城市自定义。",
         "在主城地圖標註銀行、拍賣行、專業訓練師、傳送門等服務，支援文字／圖示顯示、專業篩選、裝飾物地點及各城市自訂。") }
@@ -70,7 +70,7 @@ if A.IsInstalled("EllesmereUI") then
         "模組化整合介面套件：動作列、單位與團隊框架、姓名板、冷卻管理器、背包、聊天、小地圖、資訊列、任務追蹤與大量便利工具，所有模組均在自帶的設定面板中設定；安裝 QFX 橋接插件後，面板內還會提供 QFX 插件設定入口。") }
 end
 if A.IsInstalled("FriendGroups") then
-    catalog[#catalog + 1] = { name = "FriendGroups", category = "chat", settings = A.FriendGroupsSettings, source = "friendgroups", description = Text(
+    catalog[#catalog + 1] = { name = "FriendGroups", category = "chat", source = "friendgroups", description = Text(
         "Organizes friends into custom and guild groups, tracks known alts and nicknames, and adds search, contact information and invite tools.",
         "把好友按自定义分组或公会整理，记录已知小号与昵称，提供好友搜索、联系人信息和邀请工具。",
         "把好友按自訂分組或公會整理，記錄已知分身與暱稱，提供好友搜尋、聯絡人資訊和邀請工具。") }
@@ -110,12 +110,6 @@ if A.IsInstalled("SavedInstances") then
         "Tracks instance and raid lockouts, world bosses, daily and weekly quests, currencies and related cooldowns across characters. Each character must be logged in before its data is recorded. /si show opens the tracking display.",
         "跨角色追踪地下城／团队副本进度、世界首领、日常与周常任务、货币及相关冷却；其他角色需实际登录后才有记录。可用 /si show 显示进度汇总窗口。",
         "跨角色追蹤地下城／團隊副本進度、世界首領、每日與每週任務、貨幣及相關冷卻；其他角色需實際登入後才有記錄。可用 /si show 顯示進度彙整視窗。") }
-end
-if A.IsInstalled("MythicDungeonTools") then
-    catalog[#catalog + 1] = { name = "MythicDungeonTools", source = "mythic-dungeon-tools", description = Text(
-        "Plans Mythic+ routes using dungeon maps, enemy data, enemy-force counts and pull groups. Routes can be saved and shared. The load-on-demand UI module is managed with the main addon.",
-        "结合地下城地图、怪物数据、敌方兵力进度和拉怪分组规划大秘境路线，可保存并分享方案。按需加载的 UI 子模块随主插件管理。",
-        "結合地下城地圖、怪物資料、敵方兵力進度和拉怪分組規劃大秘境路線，可儲存並分享方案。按需載入的 UI 子模組隨主插件管理。") }
 end
 if A.IsInstalled("WaypointUI") then
     catalog[#catalog + 1] = { name = "WaypointUI", category = "map", categories = {"ui"}, source = "waypointui", description = Text(
@@ -172,9 +166,9 @@ for _, data in ipairs(catalog) do
     if data.name == "HandyNotes" then
         patch.description = function() return AM.L.HANDYNOTES_DESCRIPTION .. "\n\n" .. data.description() end
     end
-    if data.settings then patch.embeddedSettings = data.settings end
+    -- Third-party addons only expose their own options window. The manager no
+    -- longer re-renders a shadow page for them.
     if data.ace then
-        patch.embeddedSettings = A.AceSettings(data.ace)
         patch.openOptions = function() A.OpenAce(data.ace) end
     elseif data.slash then patch.openOptions = A.SlashOptions(data.slash, data.slashArg) end
     if reg then A.Update(data.name, patch)
@@ -191,6 +185,14 @@ for _, data in ipairs(catalog) do
 end
 AM.ThirdPartyCatalog = catalog
 
+A.Update("BugSack", { openOptions = A.NativeOptions(function()
+    local broker = LibStub and LibStub("LibDataBroker-1.1", true)
+    local launcher = broker and broker:GetDataObjectByName("BugSack")
+    if launcher and type(launcher.OnClick) == "function" then
+        return launcher.OnClick(launcher, "RightButton")
+    end
+    return A.TrySlash({"BugSack"}, "")
+end) })
 A.Update("DialogueUI", { openOptions = function()
     if type(DialogueUI_ShowSettingsFrame) == "function" then DialogueUI_ShowSettingsFrame(); return end
     error(AM.L.OPEN_OPTIONS_FAILED)
@@ -204,7 +206,8 @@ A.Update("EllesmereUI", { openOptions = function()
 end })
 A.Update("BtWQuests", { openOptions = function()
     if BtWQuestsOptionsMenu and BtWQuestsOptionsMenu.Toggle then
-        BtWQuestsOptionsMenu:Toggle(AM.UI.detailPanel, 0, 0); return
+        local panel = AM.UI and AM.UI.detailPanel
+        return BtWQuestsOptionsMenu:Toggle(panel and panel:IsVisible() and panel or "cursor", 0, 0)
     end
     error(AM.L.OPEN_OPTIONS_FAILED)
 end })
@@ -220,8 +223,3 @@ A.Update("YUI_AuctionHelper", { openOptions = function()
     if YUI and YUI.Settings and YUI.Settings.OpenProduct then YUI.Settings:OpenProduct("auction_helper"); return end
     error(AM.L.OPEN_OPTIONS_FAILED)
 end })
-local mdt = AM.Groups.Get("mdt")
-if mdt then mdt.children = {"MythicDungeonTools", "MythicDungeonTools_UI"} end
-if A.IsInstalled("MythicDungeonTools", "MythicDungeonTools_UI") then
-    AM.RegisterAddon("MythicDungeonTools_UI", { adapted = true, technical = true })
-end

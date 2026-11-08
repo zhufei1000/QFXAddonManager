@@ -46,7 +46,8 @@ DEFAULT_COLORS.block = DEFAULT_COLORS.block or { 0.80, 0.80, 0.80, 1.00 }
 DEFAULT_COLORS.defense = DEFAULT_COLORS.defense or { 0.70, 0.90, 0.70, 1.00 }
 
 -- 显示顺序固定；布局从底部向上生长，但视觉上仍保持本列表从上到下的顺序。
--- Forever has no mastery/versatility/tertiary stats; use the Classic sheet.
+-- Forever has no mastery/versatility/tertiary stats, but its 12.1.5 client
+-- still exposes GetHaste and haste rating, so keep haste on the Classic sheet.
 local RETAIL_STAT_ORDER = {
     "primary",
     "crit",
@@ -61,6 +62,7 @@ local RETAIL_STAT_ORDER = {
 local CLASSIC_STAT_ORDER = {
     "primary",
     "crit",
+    "haste",
     "hit",
     "armor",
     "dodge",
@@ -230,7 +232,68 @@ local function GetCritDisplay()
     return true, value
 end
 
+local function GetForeverHasteDisplay()
+    -- Mirror the Camelot character sheet exactly. It ignores GetHaste (which
+    -- stays at zero there) and shows the highest of melee, ranged (base plus
+    -- ammo) and spell haste. Restricted values are forwarded unchanged.
+    local meleeOK, melee = TryCall(GetMeleeHaste)
+    if meleeOK and melee ~= nil and not IsPublicNumber(melee) then return true, melee end
+
+    local rangedOK, rangedBase, ammo = TryCall(GetRangedHaste)
+    if rangedOK then
+        if rangedBase ~= nil and not IsPublicNumber(rangedBase) then return true, rangedBase end
+        if ammo ~= nil and not IsPublicNumber(ammo) then return true, ammo end
+    end
+
+    local spellOK, spell = TryCall(UnitSpellHaste, "player")
+    if spellOK and spell ~= nil and not IsPublicNumber(spell) then return true, spell end
+
+    local found, value
+    if meleeOK and IsPublicNumber(melee) then found, value = true, melee end
+    if rangedOK and IsPublicNumber(rangedBase) then
+        local ranged = rangedBase + (IsPublicNumber(ammo) and ammo or 0)
+        if not found or ranged > value then found, value = true, ranged end
+    end
+    if spellOK and IsPublicNumber(spell) then
+        if not found or spell > value then found, value = true, spell end
+    end
+    return found == true, value
+end
+
+local function GetForeverHitDisplay()
+    -- Camelot's character sheet adds the flat hit modifiers to the matching
+    -- combat ratings and shows the highest of melee, ranged and spell hit.
+    local function ReadPart(ratingName, modifierFn)
+        local id = _G[ratingName]
+        local rating = 0
+        if type(id) == "number" then
+            local ok, value = TryCall(GetCombatRatingBonus, id)
+            if ok and value ~= nil then rating = value end
+        end
+        local modifierOK, modifier = TryCall(modifierFn)
+        if not modifierOK or modifier == nil then modifier = 0 end
+        return rating, modifier
+    end
+
+    local meleeRating, meleeModifier = ReadPart("CR_HIT_MELEE", GetHitModifier)
+    local rangedRating, rangedModifier = ReadPart("CR_HIT_RANGED", GetRangedHitModifier)
+    local spellRating, spellModifier = ReadPart("CR_HIT_SPELL", GetSpellHitModifier)
+
+    -- A restricted component cannot be added or compared in Lua. Forward the
+    -- first restricted value unchanged so the C side can format it.
+    if not IsPublicNumber(meleeRating) then return true, meleeRating end
+    if not IsPublicNumber(meleeModifier) then return true, meleeModifier end
+    if not IsPublicNumber(rangedRating) then return true, rangedRating end
+    if not IsPublicNumber(rangedModifier) then return true, rangedModifier end
+    if not IsPublicNumber(spellRating) then return true, spellRating end
+    if not IsPublicNumber(spellModifier) then return true, spellModifier end
+
+    return true, math.max(meleeRating + meleeModifier, rangedRating + rangedModifier, spellRating + spellModifier)
+end
+
 local function GetHitDisplay()
+    if IS_FOREVER then return GetForeverHitDisplay() end
+
     local id
     if mod.critSource == "spell" then
         id = _G.CR_HIT_SPELL
@@ -245,6 +308,17 @@ local function GetHitDisplay()
 end
 
 local function GetDefenseDisplay()
+    if IS_FOREVER then
+        local ok, base, modifier = TryCall(UnitDefenseSkill, "player")
+        if not ok or base == nil then return false end
+        if not IsPublicNumber(base) then return true, base end
+        -- The Camelot sheet uses the effective defense skill (base + modifier).
+        -- If the modifier is restricted, show the public base instead of
+        -- performing secret arithmetic.
+        if modifier == nil or not IsPublicNumber(modifier) then return true, base end
+        return true, math.max(0, base + modifier)
+    end
+
     local id = _G.CR_DEFENSE_SKILL
     if type(id) ~= "number" or type(GetCombatRating) ~= "function" then return false end
     local ok, value = TryCall(GetCombatRating, id)
@@ -265,7 +339,12 @@ local function GetStatDisplay(key)
         local ok, value = GetCritDisplay()
         return ok, "%.1f%%", value
     elseif key == "haste" then
-        local ok, value = TryCall(GetHaste)
+        local ok, value
+        if IS_FOREVER then
+            ok, value = GetForeverHasteDisplay()
+        else
+            ok, value = TryCall(GetHaste)
+        end
         return ok, "%.1f%%", value
     elseif key == "mastery" then
         local ok, value = TryCall(GetMasteryEffect)
@@ -364,8 +443,10 @@ local function SetStatValue(row, key, db)
     end
 
     -- Keep the raw values untouched. In restricted combat they may be secret.
+    -- Forever has no compatible rating column, so never show it there even if
+    -- an older saved profile still has showRating enabled.
     db = db or DB()
-    if db.showRating ~= false then
+    if not IS_FOREVER and db.showRating ~= false then
         local ratingOK, rating = GetRatingDisplay(key)
         if ratingOK then
             fontString:SetFormattedText(formatText, value)
@@ -667,7 +748,7 @@ local function RefreshRows()
     local ratingW = MeasureLayoutText(f, "- 999999", otherSize)
     local ratingX = valueStartX + valueW + 4
     local numericW = valueW
-    if db.showRating ~= false then numericW = valueW + 4 + ratingW end
+    if not IS_FOREVER and db.showRating ~= false then numericW = valueW + 4 + ratingW end
     local rowSpacing = tonumber(db.rowSpacing) or 1
     local paddingX = tonumber(db.framePaddingX) or 4
     local paddingY = tonumber(db.framePaddingY) or 4
@@ -822,6 +903,7 @@ local EVENTS = {
     "PLAYER_EQUIPMENT_CHANGED",
     "COMBAT_RATING_UPDATE",
     "UNIT_STATS",
+    "UNIT_SPELL_HASTE",
     "PLAYER_TALENT_UPDATE",
     "UPDATE_SHAPESHIFT_FORM",
 }
@@ -833,7 +915,8 @@ if not IS_FOREVER then
 end
 
 local function OnStatsEvent(event, unit)
-    if (event == "UNIT_STATS" or event == "PLAYER_SPECIALIZATION_CHANGED") and unit and unit ~= "player" then
+    if (event == "UNIT_STATS" or event == "UNIT_SPELL_HASTE" or event == "PLAYER_SPECIALIZATION_CHANGED")
+        and unit and unit ~= "player" then
         return
     end
 
@@ -982,9 +1065,11 @@ ns.RegisterModule(KEY, {
                     end
                 end
                 s:CheckGrid(items, { columns = 2 })
-                s:Check(ui.L("Show Rating Numbers"), function() return db.showRating ~= false end, function(v)
-                    db.showRating = v and true or false; ns.ApplyModule(KEY)
-                end, ui.L("Append the rating number after each percentage. Display only, never compared."))
+                if not IS_FOREVER then
+                    s:Check(ui.L("Show Rating Numbers"), function() return db.showRating ~= false end, function(v)
+                        db.showRating = v and true or false; ns.ApplyModule(KEY)
+                    end, ui.L("Append the rating number after each percentage. Display only, never compared."))
+                end
                 page:AddSection(s)
 
                 local s0 = page:NewSection(ui.L("Defense Stats") .. " / " .. ui.L("Auto Display"))

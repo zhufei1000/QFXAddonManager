@@ -70,6 +70,7 @@ function QFXAM.Widgets.ApplyBrand()
         watermarkRatio = 16,
         watermarkTint = { 1, 1, 1, 0.78 },
         sheenMask = root .. "brand-sheen-mask.blp",
+        contactRoot = root,
     })
     brandedFactory = W
 end

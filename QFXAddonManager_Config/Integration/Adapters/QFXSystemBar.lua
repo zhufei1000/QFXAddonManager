@@ -1,12 +1,15 @@
 local QFXAM = _G.QFXAddonManager or select(2, ...)
 if not QFXAM.AdapterUtils.IsInstalled("QFXSystemBar") then return end
-local Update, TrySlash = QFXAM.AdapterUtils.Update, QFXAM.AdapterUtils.TrySlash
+local Update = QFXAM.AdapterUtils.Update
 
 Update("QFXSystemBar", {
+    nativeOptions = true,
     description = function() return QFXAM.L.SYSTEMBAR_DESCRIPTION end,
-    embeddedSettings = function(context)
+    openOptions = function(key)
         local api = rawget(_G, "QFXSystemBarAPI")
-        if api and api.GetSettingsDefinition then return api.GetSettingsDefinition(context) end
+        if api and type(api.OpenNativeOptions) == "function" then
+            return api.OpenNativeOptions(key)
+        end
+        error(QFXAM.L.OPEN_OPTIONS_FAILED)
     end,
-    openOptions = function() QFXAM.AdapterUtils.OpenEmbeddedSettings("QFXSystemBar") end,
 })

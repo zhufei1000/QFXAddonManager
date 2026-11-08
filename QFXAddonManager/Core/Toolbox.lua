@@ -295,32 +295,12 @@ function AM.API.ToggleToolbox()
     return true
 end
 
--- Consumer option launchers select their adapted addon and use the common editor.
+-- Consumer option launchers open the addon's own entry. QFXBeggar and
+-- QfxUI_Installer route that entry to their retained dedicated pages; every
+-- other addon opens its native window. tabKey is forwarded for deep links.
 function AM.API.OpenAddonSettings(name, tabKey)
-    if not AM.EnsureConfigLoaded() then return false end
-    AM.EnsureAdaptersLoaded()
-    if not AM.Registry.GetEmbeddedSettings(name) then return false end
-    AM.ScanAddOns()
-    local selected
-    local function FindAddon()
-        for _, item in ipairs(AM.Cache.display) do
-            if (item.primary or item.name) == name then return item end
-        end
-    end
-    selected = FindAddon()
-    if not selected then
-        AM.State.category, AM.State.search = "all", ""
-        AM.BuildDisplayList()
-        selected = FindAddon()
-    end
-    if not selected then return false end
-    AM.SelectItem(selected)
-    AM.SaveUIState()
-    AM.UI.externalAutoKey = nil
-    if tabKey then AM.UI.embeddedRequestedTab = { key = "@addon:" .. name, tab = tabKey } end
-    AM.UI.Show()
-    AM.UI.OpenEmbeddedSettings()
-    return true
+    if tabKey ~= nil then return AM.OpenRegisteredOptions(name, true, tabKey) end
+    return AM.OpenRegisteredOptions(name, true)
 end
 
 function AM.API.RefreshToolbox()
