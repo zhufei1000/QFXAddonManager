@@ -258,6 +258,7 @@ end
 function AM.API.OpenToolbox(key)
     if not AM.EnsureConfigLoaded() then return false end
     AM.EnsureAdaptersLoaded()
+    local explicit = type(key) == "string"
     key = key or (AM.State.selectedType == "toolboxFeature" and AM.State.selectedKey)
     key = type(key) == "string" and key:gsub("^module:", "") or nil
     -- An explicit module request must be visible even when the right column
@@ -276,10 +277,11 @@ function AM.API.OpenToolbox(key)
     AM.SaveUIState()
     AM.UI.toolboxAutoKey = nil
     AM.UI.Show()
-    if key and T.GetSettingsKind(key) ~= "module" then
+    local kind = key and T.GetSettingsKind(key)
+    if kind and (kind ~= "module" or (explicit and selected and not AM.GetOpenOptionsOnCardClick())) then
         AM.UI.OpenToolboxSettings(T.GetSettingsKey(key))
         local ns = T.GetNamespace()
-        if T.GetSettingsKind(key) == "parameters" and ns and ns.QFXManagerHost then ns.QFXManagerHost.SelectTab(key) end
+        if kind == "parameters" and ns and ns.QFXManagerHost then ns.QFXManagerHost.SelectTab(key) end
     end
     if AM.UI.ScrollToolboxToSelection then AM.UI.ScrollToolboxToSelection() end
     return true

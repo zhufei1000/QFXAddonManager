@@ -456,7 +456,6 @@ function UI.Show()
         if QFXAM.CaptureDisplayLoadOrder then QFXAM.CaptureDisplayLoadOrder() end
         if QFXAM.BuildDisplayList then QFXAM.BuildDisplayList() end
     end
-    QFXAM.scanDirty = nil
     UI.Refresh(true)
     f:Show()
     -- The scroll host reserves its bar before the first render, so the row

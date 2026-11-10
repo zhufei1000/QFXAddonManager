@@ -1,4 +1,4 @@
-QFXAddonManager v1.3.0
+QFXAddonManager v1.4.0
 
 本体包含主包 QFXAddonManager 和五个按需子包：QFXAddonManager_Config、QFXAddonManager_Toolbox_Daily、QFXAddonManager_Toolbox_Combat、QFXAddonManager_Toolbox_ChatBar、QFXAddonManager_Libraries_GlowFallback。根目录 QFX_SharedMedia 是必须一起保留的纯素材目录，无独立插件入口。
 
@@ -11,6 +11,8 @@ QFXfocus、PetStatusAlert 和 QFXSkillAlerts 需要独立下载，管理中心�
 从旧包升级：覆盖解压不会移除已经退出分发的旧目录。当前以本包列出的六个 QFXAddonManager 家族目录为准，旧适配器／词典／媒体库及已合并功能子包不再分发。其他自有插件可自行保留和维护，专属适配继续有效。不要删除玩家 WTF／SavedVariables。
 
 使用 /qfxam、/qfxaddons 或小地图入口打开管理中心。/qfxt 与 /qfxbox 打开内置小工具。
+
+顶部“点击卡片打开设置”默认开启，关闭后可从右栏手动打开设置。未适配插件可在右栏保存自己的设置命令。可在“开关设置”中启用小地图按钮收纳，适用于管理中心已有设置入口的受支持插件。
 
 左侧“内置工具”仅显示内置模块；“全部插件”和其他功能分类显示已安装的适配插件／分组，底部“未适配插件”按父插件合并子包。“推荐插件”列出六款插件中当前客户端支持且尚未安装的项目，右栏可复制下载链接。QFXfocus 仅推荐给正式服。中栏卡片一行两个，名称／图标选择说明，电源控制已安装插件启停；启停后按提示双击“重载”。
 

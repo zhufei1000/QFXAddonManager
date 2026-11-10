@@ -1,8 +1,13 @@
-dofile("tools/validate_builtin_toolbox.lua")
+dofile("tools/validate_ui.lua")
 local AM, fixture = QFXAddonManager, QFXTestFixture
+QFXWidgets:SetMotionEnabled(false)
+AM.UI.Hide()
 AM.UI.Refresh = function() end
+assert(loadfile("QFXAddonManager/Core/Toolbox.lua"))(AM.name, AM)
+Minimap = CreateFrame("Frame", nil, UIParent)
 local conflict
-AM.API.IsAddOnLoaded = function(name) return name == conflict end
+local loaded = {}
+AM.API.IsAddOnLoaded = function(name) return name == conflict or loaded[name] == true end
 AM.Registry.Get = function(name) return name == "BrokerAlias" and { name = "Adapted" } or nil end
 AM.Registry.IsAdapted = function() return false end
 AM.Registry.GetOpenOptions = function(name)
@@ -12,6 +17,7 @@ end
 local icons, names, iconCreated = {}, {}, nil
 local function AddIcon(owner, parent, adapted)
     AM.Cache.addons[owner] = { name = owner, loaded = true, adapted = adapted }
+    loaded[owner] = true
     local button = CreateFrame("Button", nil, parent)
     button:SetPoint("CENTER", Minimap, "CENTER", 12, -7)
     icons[owner] = button
@@ -61,13 +67,19 @@ assert(switch.get() and not adapted:IsVisible() and adapted:IsShown() and iconCr
 assert(unadapted:IsVisible() and noSettings:IsVisible() and manager:IsVisible()
     and protected:IsVisible() and ownedElsewhere:GetParent() == foreignParent)
 local late = AddIcon("Late", Minimap, true)
+AM.Cache.addons.Late.loaded = false
+AM.ScanAddOns = function() error("The hidden collector must not scan the addon list") end
 fixture.setCombat(true)
 iconCreated()
 table.remove(fixture.deferred)()
 assert(late:IsVisible(), "Combat defers ownership changes")
 fixture.setCombat(false)
-AM.RefreshMinimapButtons()
-assert(not late:IsVisible())
+local pending = #fixture.deferred
+AM.eventFrame:GetScript("OnEvent")(AM.eventFrame, "ADDON_LOADED", "Late")
+assert(#fixture.deferred == pending + 1)
+table.remove(fixture.deferred)()
+assert(not late:IsVisible() and not AM.Cache.addons.Late.loaded,
+    "Hidden late loads are collected using live state without updating the scan snapshot")
 adapted:Hide()
 switch.set(false)
 local _, anchor, _, x, y = adapted:GetPoint(1)

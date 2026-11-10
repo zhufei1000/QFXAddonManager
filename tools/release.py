@@ -80,7 +80,7 @@ def check():
             subprocess.run([lua, "tools/" + test + ".lua", locale], check=True, cwd=ROOT)
     for test in ("validate_forever_compat", "validate_forever_toolbox"):
         subprocess.run([lua, "tools/" + test + ".lua"], check=True, cwd=ROOT)
-    for test in ("test_ranked_options", "test_addon_options_commands"):
+    for test in ("test_ranked_options", "test_addon_options_commands", "test_manager_refresh", "test_minimap_buttons"):
         subprocess.run([lua, "tests/" + test + ".lua"], check=True, cwd=ROOT)
     print(f"Verified {syntax_count} Lua files and UI behavior in three languages")
 

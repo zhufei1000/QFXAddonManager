@@ -22,6 +22,7 @@ local function EnsureCache()
     QFXAM.Cache.singleBundles = QFXAM.Cache.singleBundles or {}
     QFXAM.Cache.meta = QFXAM.Cache.meta or {}
     QFXAM.Cache.seen = QFXAM.Cache.seen or {}
+    QFXAM.Cache.requiredBy = QFXAM.Cache.requiredBy or {}
     return QFXAM.Cache
 end
 
@@ -199,6 +200,7 @@ function QFXAM.ScanAddOns(newDisplaySession)
     cache.addonChildrenGeneration = nil
     Wipe(cache.list)
     Wipe(cache.seen)
+    Wipe(cache.requiredBy)
 
     local gen = QFXAM.registrationGeneration or 0
     local count = API.GetNumAddOns()
@@ -257,6 +259,15 @@ function QFXAM.ScanAddOns(newDisplaySession)
             info.sortKey = meta.sortKey
 
             table.insert(cache.list, info)
+            for _, dependency in ipairs(info.deps or {}) do
+                local key = Lower(dependency)
+                local dependents = cache.requiredBy[key]
+                if not dependents then
+                    dependents = {}
+                    cache.requiredBy[key] = dependents
+                end
+                dependents[#dependents + 1] = info
+            end
         end
     end
 
@@ -278,29 +289,39 @@ function QFXAM.ScanAddOns(newDisplaySession)
 
     if newDisplaySession then QFXAM.CaptureDisplayLoadOrder() end
     QFXAM.BuildDisplayList()
+    QFXAM.scanDirty = nil
 end
 
 -- Enable/disable changes only session state, never TOC facts or ordering.
 function QFXAM.RefreshAddOnStates(name)
-    if not QFXAM.Cache or not QFXAM.Cache.list then return QFXAM.ScanAddOns() end
+    local cache = QFXAM.Cache
+    if not cache or not cache.list then return QFXAM.ScanAddOns() end
     local function Update(info)
-        -- Enable/disable only changes the session state. TOC facts
-        -- (loadable/reason) are fixed for this scan; a LOD load goes through
-        -- ScanAddOns. Avoid one GetAddOnInfo call per installed addon here.
+        local _, _, _, loadable, reason = API.GetAddOnInfo(info.name)
         info.state = API.GetAddOnEnableState(info.name) or 0
         info.enabled = info.state == 1 or info.state == 2
         info.loaded = API.IsAddOnLoaded(info.name) and true or false
+        info.reason = reason
+        info.loadable = (loadable or (info.lod and reason == "DEMAND_LOADED")) and true or false
     end
-    if name then
-        local addons = QFXAM.Cache.addons
-        local info = addons and (addons[name] or addons[string.lower(name)])
-        if info then
-            Update(info)
-        else
-            for _, entry in ipairs(QFXAM.Cache.list) do Update(entry) end
+    local info = name and cache.addons and (cache.addons[name] or cache.addons[Lower(name)])
+    if info and cache.requiredBy then
+        -- A power change can also change whether required dependents can load.
+        local affected, seen = { info }, { [info] = true }
+        local index = 1
+        while affected[index] do
+            local current = affected[index]
+            Update(current)
+            for _, dependent in ipairs(cache.requiredBy[Lower(current.name)] or {}) do
+                if not seen[dependent] then
+                    seen[dependent] = true
+                    affected[#affected + 1] = dependent
+                end
+            end
+            index = index + 1
         end
     else
-        for _, info in ipairs(QFXAM.Cache.list) do Update(info) end
+        for _, entry in ipairs(cache.list) do Update(entry) end
     end
     QFXAM.BuildDisplayList()
 end
@@ -770,7 +791,6 @@ function QFXAM.BuildDisplayList()
         end
     end
     SortDisplayList()
-    QFXAM.scanDirty = nil
 end
 
 function QFXAM.GetSelectedItem()

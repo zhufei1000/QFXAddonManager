@@ -292,6 +292,22 @@ function UI.CreateAddonList(parent)
         return rowTops[index] or 0
     end
 
+    local function PositionRow(row, top)
+        if row._top == top then return end
+        row._top = top
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -top)
+    end
+
+    local function UpdateContentHeight()
+        if topsDirty then RebuildTops() end
+        local height = math.max(totalHeight, 1)
+        if height == lastContentHeight then return end
+        lastContentHeight = height
+        list:SetHeight(height)
+        page:SetContentHeight(height)
+    end
+
     local function BuildRow()
         -- Each addon button supplies its own selected/hover background.
         local row = CreateFrame("Frame", nil, list)
@@ -344,18 +360,14 @@ function UI.CreateAddonList(parent)
         row._leftSlot.control, row._rightSlot.control = row._leftSlot.region._control, row._rightSlot.region._control
         local height = row._settings:GetHeight() + rowGap
         row:SetHeight(height)
-        if heights[index] ~= height then
-            heights[index] = height
+        if RowHeight(index) ~= height then
+            heights[index] = height ~= defaultRowH and height or nil
             topsDirty = true
         end
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -RowTop(index))
-        row:Show()
     end
 
     local function VisibleRange()
         if itemCount == 0 then return 0, 0 end
-        if topsDirty then RebuildTops() end
         local offset = page.GetOffset and page:GetOffset() or 0
         local viewHeight = page.frame and page.frame:GetHeight() or 0
         local pad = defaultRowH
@@ -385,14 +397,13 @@ function UI.CreateAddonList(parent)
         if updateExisting == nil then updateExisting = true end
         if reset or refreshItems ~= false then
             currentPairs = ChunkDisplay()
+            if itemCount ~= #currentPairs then topsDirty = true end
             itemCount = #currentPairs
         end
         if reset then
             -- heights is sparse (only measured rows); # is not a safe bound.
             for index in pairs(heights) do heights[index] = nil end
             topsDirty = true
-        end
-        if reset then
             for index, row in pairs(rowsByIndex) do
                 if not pinnedRows[row] then
                     rowsByIndex[index] = nil
@@ -400,18 +411,9 @@ function UI.CreateAddonList(parent)
                 end
             end
         end
-        -- Clamp the scroll offset against the new (possibly shorter) list before
-        -- choosing rows; otherwise filtering while scrolled down leaves a blank
-        -- window until the next user scroll.
-        if topsDirty then RebuildTops() end
-        local initialHeight = math.max(totalHeight, 1)
-        if initialHeight ~= lastContentHeight then
-            lastContentHeight = initialHeight
-            page:SetContentHeight(initialHeight)
-        end
-        local first, last = VisibleRange()
-        local keep = {}
+        local configured = {}
         local function Ensure(index)
+            if configured[index] then return end
             local row = rowsByIndex[index]
             if not row then
                 row = AcquireRow()
@@ -421,41 +423,31 @@ function UI.CreateAddonList(parent)
                 or not row:IsShown() then
                 ConfigureRow(row, currentPairs[index], index)
             end
-            keep[row] = true
+            configured[index] = true
         end
-        if first > 0 then
-            for index = first, last do Ensure(index) end
-        end
-        -- A newly measured class-icon row can change later row positions.
-        topsDirty = true
-        local first2, last2 = VisibleRange()
-        if first2 > 0 and (first2 < first or last2 > last) then
-            for index = first2, last2 do Ensure(index) end
-        end
+        local first, last
+        repeat
+            -- Clamp the offset before choosing rows. Only repeat if a measured
+            -- height changed the visible range or scrollbar geometry.
+            UpdateContentHeight()
+            first, last = VisibleRange()
+            if first > 0 then
+                for index = first, last do Ensure(index) end
+            end
+        until not topsDirty
         for index, row in pairs(rowsByIndex) do
-            if not keep[row] then
-                if pinnedRows[row] then
-                    row:Hide()
-                else
-                    rowsByIndex[index] = nil
-                    ReleaseRow(row)
-                end
+            if index >= first and index <= last then
+                PositionRow(row, rowTops[index])
+                if not row:IsShown() then row:Show() end
+            elseif pinnedRows[row] then
+                row:Hide()
+            else
+                rowsByIndex[index] = nil
+                ReleaseRow(row)
             end
         end
-        RebuildTops()
-        for index, row in pairs(rowsByIndex) do
-            if keep[row] or pinnedRows[row] then
-                row:ClearAllPoints()
-                row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -(rowTops[index] or 0))
-            end
-        end
-        list:SetWidth(RowWidth())
-        local contentHeight = math.max(totalHeight, 1)
-        if list:GetHeight() ~= contentHeight then list:SetHeight(contentHeight) end
-        if contentHeight ~= lastContentHeight then
-            lastContentHeight = contentHeight
-            page:SetContentHeight(contentHeight)
-        end
+        local width = RowWidth()
+        if list:GetWidth() ~= width then list:SetWidth(width) end
     end
 
     local function EnsureRow(index, pin)
@@ -476,9 +468,8 @@ function UI.CreateAddonList(parent)
         if row._index ~= index or row._item ~= currentPairs[index] or not row:IsShown() then
             ConfigureRow(row, currentPairs[index], index)
         end
-        row:Show()
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -RowTop(index))
+        PositionRow(row, RowTop(index))
+        if not row:IsShown() then row:Show() end
         return row
     end
 

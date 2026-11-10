@@ -31,8 +31,9 @@ local function HasManagerEntry(name)
     local entry = AM.Registry.Get(name)
     local owner = entry and entry.name or name
     local info = AM.Cache.addons[owner] or AM.Cache.addons[owner:lower()]
-    return info and info.loaded and not info.technical and info.name ~= AM.name
+    return info and not info.technical and info.name ~= AM.name
         and (info.adapted or AM.Registry.IsAdapted(info.name))
+        and AM.API.IsAddOnLoaded(info.name)
         and AM.Registry.GetOpenOptions(info.name)
 end
 

@@ -182,18 +182,14 @@ local function ScheduleRescan()
     rescanPending = true
     C_Timer.After(0.5, function()
         rescanPending = false
-        if not (QFXAM.UI and QFXAM.UI.frame and QFXAM.UI.frame:IsShown()) then
-            -- The window is hidden: only the optional minimap-button collector
-            -- needs late LOD buttons, not a full addon-list scan.
-            if collectMinimap and QFXAM.RefreshMinimapButtons then QFXAM.RefreshMinimapButtons() end
-            return
+        local currentUI = QFXAM.UI
+        if QFXAM.scanDirty and QFXAM.ScanAddOns and currentUI and currentUI.frame and currentUI.frame:IsShown() then
+            QFXAM.ScanAddOns()
+            if currentUI.Refresh and currentUI.frame:IsShown() then currentUI.Refresh(true) end
         end
-        if not QFXAM.ScanAddOns then return end
-        QFXAM.scanDirty = nil
-        QFXAM.ScanAddOns()
-        if collectMinimap and QFXAM.RefreshMinimapButtons then QFXAM.RefreshMinimapButtons() end
-        if QFXAM.UI and QFXAM.UI.Refresh and QFXAM.UI.frame and QFXAM.UI.frame:IsShown() then
-            QFXAM.UI.Refresh(true)
+        -- The collector can check late LOD buttons without a display scan.
+        if QFXAM.db.ui.collectMinimapButtons and QFXAM.RefreshMinimapButtons then
+            QFXAM.RefreshMinimapButtons()
         end
     end)
 end
