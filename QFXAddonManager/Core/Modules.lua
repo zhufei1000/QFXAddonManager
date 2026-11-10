@@ -107,16 +107,6 @@ function Modules.GetPrimaryInfo(key)
 end
 
 function Modules.GetStats(key)
-    local installed, enabled, loaded, loadable = 0, 0, 0, 0
-    if not QFXAM.Cache or not QFXAM.Cache.addons then return installed, enabled, loaded, loadable end
-    for _, addonName in ipairs(Modules.GetAddonList(key)) do
-        local info = QFXAM.Cache.addons[addonName]
-        if info then
-            installed = installed + 1
-            if info.enabled then enabled = enabled + 1 end
-            if info.loaded then loaded = loaded + 1 end
-            if info.loadable then loadable = loadable + 1 end
-        end
-    end
-    return installed, enabled, loaded, loadable
+    if not QFXAM.Cache or not QFXAM.Cache.addons then return 0, 0, 0, 0 end
+    return QFXAM.CountAddonStats(Modules.GetAddonList(key))
 end

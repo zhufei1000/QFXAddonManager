@@ -7,6 +7,9 @@ local Registry = QFXAM.Registry
 -- that bypass the Register* functions must call NotifyRegistrationChanged.
 function QFXAM.NotifyRegistrationChanged()
     QFXAM.registrationGeneration = (QFXAM.registrationGeneration or 0) + 1
+    -- A display cache built before this registration must be refreshed when the
+    -- manager is next opened, even if no ADDON_LOADED event arrived.
+    QFXAM.scanDirty = true
 end
 
 function QFXAM.RegisterAddon(name, data)
@@ -45,7 +48,9 @@ end
 
 function Registry.GetOpenOptions(name)
     local reg = Registry.Get(name)
-    return reg and reg.openOptions or nil
+    if not reg then return nil end
+    if reg.openOptions then return reg.openOptions end
+    if reg.findOpenOptions then return reg.findOpenOptions() end
 end
 
 function Registry.GetEmbeddedSettings(name)

@@ -33,18 +33,8 @@ end
 
 function Groups.GetGroupStats(key)
     local group = Groups.Get(key)
-    local installed, enabled, loaded, loadable = 0, 0, 0, 0
-    if not group then return installed, enabled, loaded, loadable end
-    for _, addonName in ipairs(group.children or {}) do
-        local info = QFXAM.Cache.addons[addonName]
-        if info then
-            installed = installed + 1
-            if info.enabled then enabled = enabled + 1 end
-            if info.loaded then loaded = loaded + 1 end
-            if info.loadable then loadable = loadable + 1 end
-        end
-    end
-    return installed, enabled, loaded, loadable
+    if not group then return 0, 0, 0, 0 end
+    return QFXAM.CountAddonStats(group.children or {})
 end
 
 function Groups.GetPrimaryInfo(key)

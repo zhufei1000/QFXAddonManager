@@ -133,10 +133,12 @@ local function RefreshUI()
     if QFXAM.UI and QFXAM.UI.Refresh then QFXAM.UI.Refresh(true) end
 end
 
-local function CommitEnablement()
+local function CommitEnablement(target)
     API.SaveAddOns()
     QFXAM.MarkReloadRequired()
-    QFXAM.RefreshAddOnStates()
+    -- Single-card changes only need that addon's session state refreshed; bulk
+    -- and mode paths still update every installed addon.
+    QFXAM.RefreshAddOnStates(target)
     RefreshUI()
 end
 
@@ -147,7 +149,7 @@ function QFXAM.SetAddonEnabled(name, enabled)
         return
     end
     if not SetAndRememberAddonEnabled(name, enabled) then return false end
-    CommitEnablement()
+    CommitEnablement(name)
 end
 
 function QFXAM.SetChildAddonEnabled(parent, child, enabled)
@@ -156,7 +158,7 @@ function QFXAM.SetChildAddonEnabled(parent, child, enabled)
     enabled = enabled and true or false
     if enabled then API.EnableAddOn(child) else API.DisableAddOn(child) end
     if API.GetAddOnEnableState(child) ~= (enabled and 2 or 0) then return false end
-    CommitEnablement()
+    CommitEnablement(child)
     return true
 end
 
@@ -193,7 +195,7 @@ function QFXAM.SetSingleBundleEnabled(itemOrName, enabled)
     local primaryName = ResolveSingleBundlePrimary(itemOrName)
     if not primaryName or primaryName == QFXAM.name then return end
     if not SetAndRememberAddonEnabled(primaryName, enabled) then return false end
-    CommitEnablement()
+    CommitEnablement(primaryName)
 end
 
 local function GetGroupPrimaryName(groupKey)
@@ -207,7 +209,7 @@ function QFXAM.SetGroupEnabled(groupKey, enabled)
     local addonName = GetGroupPrimaryName(groupKey)
     if not addonName or addonName == QFXAM.name then return end
     if not QFXAM.Cache.addons[addonName] or not SetAndRememberAddonEnabled(addonName, enabled) then return false end
-    CommitEnablement()
+    CommitEnablement(addonName)
 end
 
 local function GetModulePrimaryName(moduleKey)
@@ -223,7 +225,7 @@ function QFXAM.SetModuleEnabled(moduleKey, enabled)
     local addonName = GetModulePrimaryName(moduleKey)
     if not addonName or addonName == QFXAM.name then return end
     if not QFXAM.Cache.addons[addonName] or not SetAndRememberAddonEnabled(addonName, enabled) then return false end
-    CommitEnablement()
+    CommitEnablement(addonName)
 end
 
 -- Both manager controls share this saved enablement state and action dispatch.
@@ -255,9 +257,7 @@ local function CanLoadAddonNow(name)
     return true
 end
 
-function QFXAM.LoadModuleNow(moduleKey)
-    -- 立即载入也只尝试主插件。子插件由父插件自身处理。
-    local addonName = GetModulePrimaryName(moduleKey)
+local function LoadPrimaryNow(addonName)
     if not CanLoadAddonNow(addonName) then return false end
     local info = addonName and QFXAM.Cache.addons[addonName]
     if info and not info.loaded and info.lod then
@@ -265,6 +265,11 @@ function QFXAM.LoadModuleNow(moduleKey)
     end
     QFXAM.ScanAddOns()
     RefreshUI()
+end
+
+function QFXAM.LoadModuleNow(moduleKey)
+    -- 立即载入也只尝试主插件。子插件由父插件自身处理。
+    return LoadPrimaryNow(GetModulePrimaryName(moduleKey))
 end
 
 function QFXAM.LoadAddonNow(name)
@@ -281,14 +286,7 @@ end
 
 function QFXAM.LoadGroupNow(groupKey)
     -- 立即载入组时也只载入主插件。
-    local addonName = GetGroupPrimaryName(groupKey)
-    if not CanLoadAddonNow(addonName) then return false end
-    local info = addonName and QFXAM.Cache.addons[addonName]
-    if info and not info.loaded and info.lod then
-        API.LoadAddOn(addonName)
-    end
-    QFXAM.ScanAddOns()
-    RefreshUI()
+    return LoadPrimaryNow(GetGroupPrimaryName(groupKey))
 end
 
 function QFXAM.OpenRegisteredOptions(name, quiet, ...)
@@ -306,6 +304,16 @@ function QFXAM.OpenRegisteredOptions(name, quiet, ...)
     -- including when a consumer calls the API before the manager was opened.
     if QFXAM.EnsureAdaptersLoaded and QFXAM.EnsureAdaptersLoaded() == false then return false end
     local open = QFXAM.Registry.GetOpenOptions(name)
+    if not open then
+        local command, argument = QFXAM.ParseAddonOptionsCommand(QFXAM.GetAddonOptionsCommand(name))
+        local call = QFXAM.AdapterUtils and QFXAM.AdapterUtils.CallNativeSlash
+        if command and call then
+            open = function()
+                if call(command, argument, true) then return true end
+                return false, L.ADDON_OPTIONS_COMMAND_UNAVAILABLE
+            end
+        end
+    end
     if type(open) ~= "function" then
         if not quiet then QFXAM.Print(L.OPEN_OPTIONS_FAILED or "Options unavailable.") end
         return false

@@ -26,6 +26,11 @@ end
 assert(#retailOnly > 0, "Missing Retail-only TOC entries")
 for _, name in ipairs(retailOnly) do installed[name] = {} end
 for _, name in ipairs({"QFXBeggar", "QfxUI_Installer", "QFXSystemBar", "Lueur"}) do installed[name] = {} end
+installed.DungeonsForever, installed.DF_CNLocale = {}, {}
+local handbookModules = {"Class", "Explore", "Faction", "Gear", "Prof", "PvP", "Spell"}
+for _, suffix in ipairs(handbookModules) do
+    installed["DungeonsForever" .. suffix] = {deps = {"DungeonsForever"}}
+end
 
 local function session(gameType, addons)
     local forever = gameType == "camelot"
@@ -67,8 +72,8 @@ local function session(gameType, addons)
     for path in tocFiles(main .. "QFXAddonManager.toc", "Configs", gameType) do core(path) end
     local config, ns = root .. "QFXAddonManager_Config/", {}
     for path in tocFiles(config .. "QFXAddonManager_Config.toc", "Integration", gameType) do
-        -- The preset event watcher is outside the settings adapter contract.
-        if path ~= "Integration/Initialize.lua" then
+        -- Validate the curated Top 100 independently of the ranked fallback.
+        if path ~= "Integration/Initialize.lua" and not path:find("^Integration/Ranked") then
             assert(loadfile(config .. path))(AM.name, ns)
         end
     end
@@ -111,6 +116,26 @@ for _, card in ipairs(forever.Cache.display) do
     cards[name] = card
 end
 local children, parents = forever.GetAddonPowerChildren()
+assert(not retail.Registry.GetOpenOptions("DungeonsForever") and not retailQueries.DF_CNLocale)
+assert(cards.DungeonsForever and cards.DungeonsForever.category == "raid" and not cards.DF_CNLocale)
+assert(children.DF_CNLocale and parents.DF_CNLocale == "DungeonsForever" and forever.Cache.addons.DF_CNLocale.technical)
+for _, suffix in ipairs(handbookModules) do
+    local name = "DungeonsForever" .. suffix
+    assert(children[name] and parents[name] == "DungeonsForever" and not cards[name] and not forever.Cache.addons[name].technical)
+end
+local handbookOpens = 0
+SlashCmdList.DUNGEONSFOREVER = function(argument)
+    assert(argument == "fb")
+    handbookOpens = handbookOpens + 1
+end
+combat = true
+assert(not forever.OpenRegisteredOptions("DungeonsForever") and handbookOpens == 0)
+combat = false
+assert(forever.OpenRegisteredOptions("DungeonsForever"))
+assert(forever.OpenRegisteredOptions("DungeonsForever") and handbookOpens == 2 and #loads == 0)
+SlashCmdList.DUNGEONSFOREVER = nil
+assert(not forever.OpenRegisteredOptions("DungeonsForever"), "An unloaded handbook has no native command")
+
 local tested = 0
 for _, project in ipairs(ranking) do
     local name, entry, role = project.name, project.entry, project.role

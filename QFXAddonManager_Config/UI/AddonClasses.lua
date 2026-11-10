@@ -57,7 +57,9 @@ local function CreateEditor()
                 if W:InCombatLocked() or not UI.classEditing or not editor.item then return end
                 if not AM.SetItemClassRule(editor.item, editor.selection) then return end
                 UI.CloseClassPicker()
-                UI.RefreshList()
+                -- Class icons change card heights, so offscreen rows cannot be
+                -- left on the state-only fast path.
+                UI.RefreshList(true)
             end },
     } })
     editor.buttons = buttons._rightRegion._dimTargets

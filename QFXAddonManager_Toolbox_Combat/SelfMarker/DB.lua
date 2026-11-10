@@ -7,83 +7,44 @@ local QSM = _G.QFXToolBoxSelfMarker
 QSM.moduleKey = "self_marker"
 
 QSM.DB_VERSION = 5
-QSM.defaults = {
+-- Core/Defaults.lua owns the canonical self_marker defaults. The Combat bundle
+-- is only loaded through the toolbox runtime, so Core is already available.
+local coreDefaults = ns and ns.ModuleDefaults and ns.ModuleDefaults.self_marker
+QSM.defaults = type(coreDefaults) == "table" and coreDefaults or {
     version = QSM.DB_VERSION,
     enabled = false,
-
-    -- Position marker: flower / star / crosshair.
     markerEnabled = false,
-    markerStyle = "flower",
-    markerLocked = true,
-    markerX = 0,
-    markerY = -80,
-    markerSize = 64,
-    markerAlpha = 0.9,
-    markerSpinMode = "none",
-    markerSpinSpeed = 5,
-    markerColorMode = "class",
-    markerCustomColor = { r = 1, g = 1, b = 1, a = 0.9 },
-    attackRangeEnabled = false,
-    attackRangeColor = { r = 1, g = 0.12, b = 0.08 },
-    markerDisplayMode = "always",
-    markerHideInPetBattle = true,
-    markerHideWhenMounted = false,
-    markerHideInVehicle = false,
-    crossLength = 26,
-    crossThickness = 3,
-    crossGap = 8,
-
-    -- Separate appearance and visibility, sharing position unless opted out.
-    linkGCDToMarker = true,
     gcdEnabled = true,
-    gcdLocked = true,
-    gcdX = 0,
-    gcdY = -80,
-    gcdSize = 64,
-    gcdDisplayMode = "gcd_only",
-    gcdColorMode = "class",
-    gcdCustomColor = { r = 1, g = 1, b = 1, a = 0.9 },
-    gcdHideInPetBattle = true,
-    gcdHideWhenMounted = false,
-    gcdHideInVehicle = false,
-    gcdDurationMode = "auto",
-    gcdFixedDuration = 1.5,
-    ringThickness = 12,
-    gcdIdleAlpha = 0.35,
-    gcdActiveAlpha = 0.9,
-
-    -- Shared drawing layer; size, color and visibility remain per visual.
     frameStrata = "HIGH",
     frameLevel = 20,
 }
 
-local function CopyValue(value)
-    if type(value) ~= "table" then
-        return value
+local CopyValue = ns and ns.CopyTable
+local MergeDefaults = ns and ns.MergeDefaults
+if type(CopyValue) ~= "function" then
+    CopyValue = function(value)
+        if type(value) ~= "table" then return value end
+        local copy = {}
+        for key, child in pairs(value) do copy[key] = CopyValue(child) end
+        return copy
     end
-
-    local copy = {}
-    for key, child in pairs(value) do
-        copy[key] = CopyValue(child)
+end
+if type(MergeDefaults) ~= "function" then
+    MergeDefaults = function(target, defaults)
+        for key, value in pairs(defaults) do
+            if type(value) == "table" then
+                if type(target[key]) ~= "table" then target[key] = {} end
+                MergeDefaults(target[key], value)
+            elseif target[key] == nil then
+                target[key] = value
+            end
+        end
+        return target
     end
-    return copy
 end
 
 QSM.CopyDefaults = function()
     return CopyValue(QSM.defaults)
-end
-
-local function MergeDefaults(target, defaults)
-    for key, value in pairs(defaults) do
-        if type(value) == "table" then
-            if type(target[key]) ~= "table" then
-                target[key] = {}
-            end
-            MergeDefaults(target[key], value)
-        elseif target[key] == nil then
-            target[key] = value
-        end
-    end
 end
 
 local function LegacyDisplayMode(db)

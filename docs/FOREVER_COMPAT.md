@@ -22,6 +22,7 @@
 - 不新增 `_Camelot.toc`；同一份包通过运行时分支同时支持正式服和无限。`QFX_SharedMedia` 的构建 TOC 自动继承主 TOC 的 Interface 行。
 - CurseForge 无限服热度前 100 项的原生设置适配使用同包 TOC 分支标记。无限服专属脚本仅在 `camelot` 加载，正式服专属脚本仅在 `standard` 加载。详见 [无限服热度榜适配](CURSEFORGE_FOREVER_TOP100.md)。
 - “推荐插件”在两端均提供 QFXSystemBar、QFXUnitframes、QFXMinimapTools、QFXSkillAlerts 和 PetStatusAlert 的未安装下载卡片。QFXfocus 的公开下载当前面向正式服，因此仅在正式服推荐。已安装插件按实际安装状态出现在原分类。
+- 无限副本手册（DungeonsForever 2.1.67）归入副本分类，通过原生命令 `/df fb` 打开手册的副本页。功能子包按 TOC 必需依赖归入主卡，`DF_CNLocale` 作为技术子包归并。
 
 ## 模式
 

@@ -13,3 +13,18 @@ SlashCmdList.QFXADDONMANAGER = function(msg)
         QFXAM.ToggleUI()
     end
 end
+
+function QFXAM.RegisterReloadShortcut()
+    if (hash_SlashCmdList and hash_SlashCmdList["/RL"]) or (IsSecureCmd and IsSecureCmd("/rl")) then return end
+    for key in pairs(SlashCmdList) do
+        local index = 1
+        local alias = _G["SLASH_" .. key .. index]
+        while type(alias) == "string" do
+            if alias:lower() == "/rl" then return end
+            index = index + 1
+            alias = _G["SLASH_" .. key .. index]
+        end
+    end
+    SLASH_QFXADDONMANAGER_RELOAD1 = "/rl"
+    SlashCmdList.QFXADDONMANAGER_RELOAD = QFXAM.API.OpenReloadDialog
+end

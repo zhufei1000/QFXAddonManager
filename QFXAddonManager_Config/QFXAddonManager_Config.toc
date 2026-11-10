@@ -25,6 +25,7 @@ UI\CategoryList.lua
 UI\AddonList.lua
 UI\DetailPanel.lua
 UI\Toolbox.lua
+UI\MinimapButtons.lua
 UI\ReloadPrompt.lua
 UI\AddonModes.lua
 UI\AddonClasses.lua
@@ -144,6 +145,7 @@ Integration\Adapters\Forever\Clique.lua [AllowLoadGameType camelot]
 Integration\Adapters\Forever\FojjiCore.lua [AllowLoadGameType camelot]
 Integration\Adapters\Forever\ForeverAuras.lua [AllowLoadGameType camelot]
 Integration\Adapters\Forever\ForeverDungeonJournal.lua [AllowLoadGameType camelot]
+Integration\Adapters\Forever\DungeonsForever.lua [AllowLoadGameType camelot]
 Integration\Adapters\Forever\ForeverLootSparkles.lua [AllowLoadGameType camelot]
 Integration\Adapters\Forever\ForeverQuestTint.lua [AllowLoadGameType camelot]
 Integration\Adapters\Forever\GatherLite.lua [AllowLoadGameType camelot]
@@ -160,4 +162,7 @@ Integration\Adapters\Forever\SkillUpForever.lua [AllowLoadGameType camelot]
 Integration\Adapters\Forever\Spoken.lua [AllowLoadGameType camelot]
 Integration\Adapters\Forever\WhatsTraining.lua [AllowLoadGameType camelot]
 
+Integration\RankedOptions.lua
+Integration\Ranked\Retail.lua [AllowLoadGameType standard]
+Integration\Ranked\Forever.lua [AllowLoadGameType camelot]
 Integration\Initialize.lua

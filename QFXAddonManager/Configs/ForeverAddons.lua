@@ -22,6 +22,7 @@ local function RegisterFamily(name, category, support)
 end
 
 RegisterFamily("Questie", "map", {"QuestieDB"})
+RegisterFamily("DungeonsForever", "raid", {"DF_CNLocale"})
 RegisterFamily("Spoken", "tool", {
     "SpokenAll", "SpokenContributions", "SpokenQuestsAudioShared",
     "SpokenQuestsAudioAlliance", "SpokenQuestsAudioHorde",

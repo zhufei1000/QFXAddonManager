@@ -4,6 +4,8 @@ local UI = QFXAM.UI
 
 UI.MEDIA_PATH = "Interface\\AddOns\\QFXAddonManager\\Media\\"
 UI.MEDIA_ICON = UI.MEDIA_PATH .. "addon-fei.blp"
+-- Use a bundled texture because the client crashed while reading the stock icon.
+UI.DEFAULT_ADDON_ICON = UI.MEDIA_PATH .. "addon-question-mark.blp"
 
 -- Built-in tool titles are already localized by their own dictionary.
 function UI.GetItemTitle(item)
@@ -63,28 +65,45 @@ function UI.CreateButton(parent, text, width, height)
 end
 
 -- The factory owns the button; QFXGlow owns its attention effect.
-function UI.SetButtonAttention(button, active)
+local OPEN_OPTIONS_GLOW_KEY = "QFXAddonManager.openOptions"
+
+function UI.SetButtonAttention(button, active, key)
     if not button then return end
     local W = UI.GetWidgets()
     local G = QFXAM.API.GetGlow and QFXAM.API.GetGlow() or rawget(_G, "QFXGlow")
     button.qfxAttentionActive = active and true or false
-    if not button._attentionHooked then
-        button:HookScript("OnShow", function(self)
-            UI.UpdateReloadPrompt()
-        end)
-        button._attentionHooked = true
-    end
     if not G then return end
-    local key = "QFXAddonManager.reload"
+    key = key or "QFXAddonManager.reload"
     if active then
-        G:Start(button, {
-            key = key, style = "proc", color = W:Tokens().warmAccentHi,
-            padding = 2, period = 1,
-            static = not W:MotionAllowed(),
-        })
+        local static = not W:MotionAllowed()
+        if button.qfxAttentionStatic == static and G:IsActive(button, key) then return end
+        button.qfxAttentionStatic = static
+        local options
+        if key == OPEN_OPTIONS_GLOW_KEY then
+            options = {
+                style = "pixel", color = W:Tokens().warmAccent,
+                lines = 8, length = 11, thickness = 2, padding = 0, period = 2.5,
+            }
+        else
+            options = { style = "proc", color = W:Tokens().warmAccentHi, padding = 2, period = 1 }
+        end
+        options.key, options.static = key, static
+        G:Start(button, options)
     else
         G:Stop(button, key)
     end
+end
+
+function UI.BindOpenOptionsAttention(row, available)
+    local button, W = row._leftRegion._dimTargets[1], UI.GetWidgets()
+    local function Refresh()
+        UI.SetButtonAttention(button, button:IsVisible() and not QFXAM.GetOpenOptionsOnCardClick()
+            and not W:InCombatLocked() and (not available or available()), OPEN_OPTIONS_GLOW_KEY)
+    end
+    button:HookScript("OnShow", Refresh)
+    button:HookScript("OnHide", function() UI.SetButtonAttention(button, false, OPEN_OPTIONS_GLOW_KEY) end)
+    W:RegisterRefresh(Refresh)
+    Refresh()
 end
 
 function UI.CreateFont(parent, template, text)

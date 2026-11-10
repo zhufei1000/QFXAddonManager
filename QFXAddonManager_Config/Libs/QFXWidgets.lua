@@ -573,6 +573,7 @@ local function InstallAddonToggle(W)
             border:EnableMouse(false)
             region._border = border
             local hover = false
+            local grayColor, grayEdge = { 0, 0, 0, 1 }, { 0, 0, 0, 1 }
             local function Paint()
                 local selected = cfg.isSelected and cfg.isSelected()
                 local loaded = not cfg.getLoaded or cfg.getLoaded() and true or false
@@ -580,12 +581,13 @@ local function InstallAddonToggle(W)
                 local color = selected and (S.closeBgHi or S.selectedFill or S.accent)
                     or (hover and S.addonTileHover or S.controlBg)
                 local edge = selected and (S.warmAccent or S.borderHi or S.border) or (hover and S.borderHi or S.border)
-                local function Gray(c)
+                local function Gray(c, out)
                     if loaded or selected then return c end
                     local gray = c[1] * 0.2126 + c[2] * 0.7152 + c[3] * 0.0722
-                    return { gray, gray, gray, c[4] or 1 }
+                    out[1], out[2], out[3], out[4] = gray, gray, gray, c[4] or 1
+                    return out
                 end
-                color, edge = Gray(color), Gray(edge)
+                color, edge = Gray(color, grayColor), Gray(edge, grayEdge)
                 if cfg.motion and self.AnimateColor then
                     self:AnimateColor(bg, color, "surface", region)
                     self:AnimateColor(border, edge, "border", region)
@@ -946,12 +948,15 @@ local function InstallMotion(W)
         local height = page.frame:GetHeight()
         local rowH, index = opts.rowH or 64, 0
         for i = 1, api:GetCount() do
-            local row = api:GetRow(i)
-            local top = (i - 1) * rowH
-            if top < offset + height and top + rowH > offset then
-                self:AnimateEntrance(row._settings or row, { duration = 0.22,
-                    distance = 8, delay = index * 0.025 })
-                index = index + 1
+            local top = api.GetRowTop and api.GetRowTop(i) or (i - 1) * rowH
+            local heightForRow = api.GetRowHeight and api.GetRowHeight(i) or rowH
+            if top < offset + height and top + heightForRow > offset then
+                local row = api.GetRowForReveal and api:GetRowForReveal(i) or api:GetRow(i)
+                if row then
+                    self:AnimateEntrance(row._settings or row, { duration = 0.22,
+                        distance = 8, delay = index * 0.025 })
+                    index = index + 1
+                end
             end
         end
     end
@@ -2722,10 +2727,16 @@ local function InstallVariableListRows(W)
             end
             local offset, height, visible = page:GetOffset(), page.frame:GetHeight(), 0
             for index = 1, api:GetCount() do
-                local row, top = api:GetRow(index), api:GetRowTop(index)
-                if top < offset + height and top + api:GetRowHeight(index) > offset then
-                    self:AnimateEntrance(row._settings or row, { duration = 0.22, distance = 8, delay = visible * 0.025 })
-                    visible = visible + 1
+                local top = api:GetRowTop(index)
+                local rowHeight = api.GetRowHeight and api:GetRowHeight(index) or opts.rowH or 24
+                if top < offset + height and top + rowHeight > offset then
+                    -- Ask for the row only after it is known to be visible: a
+                    -- virtual list must not materialize every offscreen row.
+                    local row = api.GetRowForReveal and api:GetRowForReveal(index) or api:GetRow(index)
+                    if row then
+                        self:AnimateEntrance(row._settings or row, { duration = 0.22, distance = 8, delay = visible * 0.025 })
+                        visible = visible + 1
+                    end
                 end
             end
         end

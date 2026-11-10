@@ -1,6 +1,18 @@
 local QFXAM = _G.QFXAddonManager
 local UI = QFXAM.UI
 local L = QFXAM.L
+local MAIN_FRAME_NAME = "QFXAddonManagerFrame"
+
+local function SetEscapeDismissible(enabled)
+    if not UISpecialFrames then return end
+    for i, name in ipairs(UISpecialFrames) do
+        if name == MAIN_FRAME_NAME then
+            if not enabled then table.remove(UISpecialFrames, i) end
+            return
+        end
+    end
+    if enabled then table.insert(UISpecialFrames, MAIN_FRAME_NAME) end
+end
 
 local smallBrandTiles = {}
 do
@@ -130,6 +142,37 @@ local function CreateScaleDropdown(f, W)
     }, L.WINDOW_LANGUAGE, L.LANGUAGE_TIP, f.scaleHost)
 end
 
+local function CreateCardOptionsToggle(f, W)
+    local host = CreateFrame("Frame", nil, f.body)
+    host:SetSize(186, f.scaleHost:GetHeight())
+    host:SetPoint("RIGHT", f.scaleHost, "LEFT", -8, 0)
+    W:BeginPage(host)
+    local row = W:DualRow(host, 0, {
+        type = "toggle", text = L.CARD_OPTIONS_ON_CLICK, tooltip = L.CARD_OPTIONS_ON_CLICK_TIP,
+        getValue = QFXAM.GetOpenOptionsOnCardClick,
+        setValue = function(on)
+            QFXAM.db.ui.openOptionsOnCardClick = on
+            local item = QFXAM.GetSelectedItem()
+            if item and item.type == "toolboxFeature" then
+                -- A preference change is not a card click.
+                UI.toolboxAutoKey = item.key
+            end
+            UI.RefreshDetail()
+        end,
+    })
+    W:EndPage()
+    local region, toggle = row._leftRegion, row._leftRegion._control
+    region:SetParent(host)
+    region:ClearAllPoints()
+    region:SetAllPoints(host)
+    toggle:ClearAllPoints()
+    toggle:SetPoint("RIGHT", host, "RIGHT", 0, 0)
+    W.TruncateToFit(region._label, L.CARD_OPTIONS_ON_CLICK,
+        host:GetWidth() - toggle:GetWidth() - W.Theme.sidePad - W.Theme.labelGap)
+    row:Hide()
+    f.cardOptionsHost, f.cardOptionsToggle = host, toggle
+end
+
 local function CreateCollapsedBar(f, W)
     if f.collapsedBar then return f.collapsedBar end
     local bar = UI.CreatePanel(f)
@@ -160,7 +203,7 @@ local function CreateCollapsedBar(f, W)
     return bar
 end
 
-function UI.SetMainCollapsed(collapsed)
+function UI.SetMainCollapsed(collapsed, keepBar)
     local f = UI.frame
     collapsed = collapsed and true or false
     if not f or collapsed == (UI.mainCollapsed == true) then return end
@@ -169,6 +212,8 @@ function UI.SetMainCollapsed(collapsed)
     W:StopMotion(f)
     UI.mainCollapsed = collapsed or nil
     if collapsed then
+        -- Closing the game Settings panel can dismiss special frames again.
+        if keepBar then SetEscapeDismissible(false) end
         local bar = CreateCollapsedBar(f, W)
         bar:ClearAllPoints()
         local right, top = f:GetRight(), f:GetTop()
@@ -181,6 +226,7 @@ function UI.SetMainCollapsed(collapsed)
         if GameTooltip then GameTooltip:Hide() end
         bar:Show()
     else
+        SetEscapeDismissible(true)
         local bar = f.collapsedBar
         if bar then
             if bar.moved and f:IsShown() then
@@ -201,6 +247,25 @@ function UI.SetMainCollapsed(collapsed)
         f.body:Show()
         if f:IsShown() and UI.toolboxSettingsKey then UI.RefreshToolboxSettings() end
     end
+end
+
+function UI.OpenSettingsFromManager(name)
+    local f, panel = UI.frame, SettingsPanel
+    local expanded = f and f:IsShown() and not f._qfxClosing and not UI.mainCollapsed
+    local wasShown = panel and panel:IsShown()
+    local category = wasShown and panel.GetCurrentCategory and panel:GetCurrentCategory()
+    local opened = QFXAM.OpenRegisteredOptions(name)
+    panel = SettingsPanel
+    if opened and expanded and panel and panel:IsShown() then
+        local dismissed = not f:IsShown() or f._qfxClosing
+        if dismissed or not wasShown or (panel.GetCurrentCategory and panel:GetCurrentCategory() ~= category) then
+            -- Blizzard may have started the close animation or hidden the frame
+            -- immediately. Restore the frame directly to retain the current view.
+            if dismissed then f:Show() end
+            UI.SetMainCollapsed(true, true)
+        end
+    end
+    return opened
 end
 
 local function CreateAuthorFooter(parent, W)
@@ -254,7 +319,7 @@ function UI.CreateMainFrame()
 
     local W = UI.GetWidgets and UI.GetWidgets() or nil
 
-    local f = CreateFrame("Frame", "QFXAddonManagerFrame", UIParent, UI.Template())
+    local f = CreateFrame("Frame", MAIN_FRAME_NAME, UIParent, UI.Template())
     f:SetSize(1116, 680)
     f:SetScale(UI.GetMainScale())
     f:SetPoint("CENTER")
@@ -303,6 +368,7 @@ function UI.CreateMainFrame()
     f.subtitle = sub
 
     CreateScaleDropdown(f, W)
+    CreateCardOptionsToggle(f, W)
     f.close = W:CloseButton(body, { tooltip = L.CLOSE, onClick = function() f:Hide() end })
     f.collapse = W:CollapseButton(body, { insetX = -40, tooltip = L.COLLAPSE_WINDOW,
         onClick = function() UI.SetMainCollapsed(true) end })
@@ -354,13 +420,7 @@ function UI.CreateMainFrame()
     f:HookScript("OnHide", function() UI.SetMainCollapsed(false) end)
     if UI.LayoutToolboxDetail then UI.LayoutToolboxDetail() end
     -- Esc closes the manager (standard dismissible window behavior).
-    if UISpecialFrames then
-        local found = false
-        for _, name in ipairs(UISpecialFrames) do
-            if name == "QFXAddonManagerFrame" then found = true break end
-        end
-        if not found then table.insert(UISpecialFrames, "QFXAddonManagerFrame") end
-    end
+    SetEscapeDismissible(true)
     return f
 end
 
@@ -387,15 +447,21 @@ function UI.Show()
     RestorePosition(f)
     local reopening = not f:IsShown() or f._qfxClosing
     if reopening then QFXAM.State.toolboxGroup = nil end
-    QFXAM.ScanAddOns(reopening)
+    local cacheReady = QFXAM.Cache and QFXAM.Cache.list and #QFXAM.Cache.list > 0
+    if QFXAM.scanDirty or not cacheReady then
+        QFXAM.ScanAddOns(reopening)
+    elseif reopening then
+        -- The addon set is unchanged; only this UI session's ordering snapshot
+        -- and the cleared toolbox group need a display rebuild, not a scan.
+        if QFXAM.CaptureDisplayLoadOrder then QFXAM.CaptureDisplayLoadOrder() end
+        if QFXAM.BuildDisplayList then QFXAM.BuildDisplayList() end
+    end
+    QFXAM.scanDirty = nil
     UI.Refresh(true)
     f:Show()
-    -- Second pass once anchors have resolved: factory rows size themselves
-    -- from live widths (scrollbar reserved), so re-render after showing.
-    if reopening then
-        if UI.RefreshList then UI.RefreshList() end
-        if UI.RefreshDetail then UI.RefreshDetail() end
-    end
+    -- The scroll host reserves its bar before the first render, so the row
+    -- widths and anchors are already final here. A second full list/detail
+    -- pass only duplicated the first open's largest Lua burst.
 end
 
 function UI.Hide()

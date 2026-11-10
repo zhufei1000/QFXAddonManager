@@ -370,8 +370,8 @@ assert(pairRow._settings._leftRegion:GetWidth() == pairRow._settings._rightRegio
 assert(pairRow._leftSlot.control._qfx == "addonToggle" and pairRow._rightSlot.control._qfx == "addonToggle", "Middle columns must use addon power controls")
 assert(pairRow._rightSlot.region._icon.texture == data[2].icon, "Addon icon must use addon metadata")
 assert(pairRow._rightSlot.region._icon.coords[2] == .25, "Original sprite icon must preserve its texture coordinates")
-local defaultIcon = [[Interface\AddOns\QFXAddonManager\Media\addon-fei.blp]]
-assert(pairRow._leftSlot.region._icon.texture == defaultIcon, "Missing addon icon must use the user's Fei artwork")
+local defaultIcon = [[Interface\AddOns\QFXAddonManager\Media\addon-question-mark.blp]]
+assert(pairRow._leftSlot.region._icon.texture == defaultIcon, "Missing addon icon must use the bundled question mark")
 -- 主插件与其适配配置都没有图标时，卡片回退使用子插件图标。
 data[1].children = { "AddonMissing", "AddonChild" }
 AM.Cache.addons.AddonChild = { name = "AddonChild", title = "Child", icon = "Interface/Icons/ChildIcon" }
@@ -382,10 +382,24 @@ data[1].children = { childInfo }
 AM.Cache.addons.AddonChild = childInfo
 UI.RefreshList()
 assert(pairRow._leftSlot.region._icon.atlas == "ChildAtlas", "Child fallback must support atlas-only icons")
+childInfo.iconAtlas = nil
+AM.SelectItem(data[1]); UI.RefreshDetail()
+local childTile = UI.detailPanel.childCardsAPI:GetRow(1).tile
+assert(childTile._leftRegion._icon.texture == defaultIcon, "A child card without artwork must use the bundled question mark")
+AM.SelectItem(nil); UI.RefreshDetail()
 data[1].children = nil
 AM.Cache.addons.AddonChild = nil
 UI.RefreshList()
-assert(pairRow._leftSlot.region._icon.texture == defaultIcon, "Removing child fallback must restore the QFX default artwork")
+assert(pairRow._leftSlot.region._icon.texture == defaultIcon, "Removing child fallback must restore the question mark")
+local toolbox = AM.Toolbox
+AM.Toolbox = { IsEnabled = function() return true end }
+data[1].type, data[1].key = "toolboxFeature", "general"
+UI.RefreshList()
+assert(pairRow._leftSlot.region._icon.texture == [[Interface\AddOns\QFXAddonManager\Media\addon-fei.blp]],
+    "Built-in cards must retain the Fei artwork")
+data[1].type, data[1].key = "singleAddon", nil
+AM.Toolbox = toolbox
+UI.RefreshList()
 local body = pairRow._rightSlot.region
 assert(body.mouseEnabled and body._border and not body._border.mouseEnabled, "Tile body must receive mouse input and its border must not intercept clicks")
 assert(W.Skin.addonTileBorderSize == 2 and body._border.regions[1]:GetHeight() > 1, "Addon tile outline must use the thicker two-pixel skin token")
@@ -449,7 +463,7 @@ assert(AM.selected == nil and AM.State.selectedKey == nil,
     "Filtering out the selection must clear it instead of auto-selecting a card")
 AM.GetSelectedItem = realGetSelected
 assert(not pairRow._settings._rightRegion:IsShown(), "Odd final setting must hide empty right lane")
-assert(pairRow._leftSlot.region._icon.texture == defaultIcon, "Recycled icon must use the QFX default when filtered addon has no icon")
+assert(pairRow._leftSlot.region._icon.texture == defaultIcon, "Recycled icon must use the bundled question mark when filtered addon has no icon")
 assert(pairRow._leftSlot.region._label:GetText() == data[20].title, "Filtered button must show the current addon name")
 assert(pairRow._leftSlot.region._icon.coords[2] == 1, "Recycled sprite coordinates must reset for a normal icon")
 UI.frame.search:GetScript("OnEscapePressed")(UI.frame.search)
@@ -574,11 +588,122 @@ local beforeRefresh = #frames
 UI.RefreshDetail(); UI.RefreshDetail()
 assert(#frames == beforeRefresh, "Unchanged details must reuse controls")
 assert(not buttonByText(UI.detailPanel, AM.L.LOAD_NOW) and not buttonByText(UI.detailPanel, AM.L.IMPORT_PRESET), "Right actions must omit Load Now and preset import")
+local clickToggle = UI.frame.cardOptionsToggle
+local launchSelection = UI.OpenSelectedNativeOptions
+UI.OpenSelectedNativeOptions = function(item) UI.OpenSettingsFromManager(item.name) end
+assert(AM.GetOpenOptionsOnCardClick() and clickToggle._state)
+pairRow._rightSlot.region:Click()
+assert(AM.openedOptions == "Addon2", "The default preference opens the clicked card's settings")
+AM.openedOptions = nil
+clickToggle:Click()
+assert(AM.db.ui.openOptionsOnCardClick == false and not clickToggle._state and not AM.openedOptions)
+pairRow._rightSlot.region:Click()
+assert(AM.selected == data[2] and not AM.openedOptions, "With auto-open off, the click only selects the card")
 local openButton = assert(buttonByText(UI.detailPanel, AM.L.OPEN_OPTIONS))
+local optionsGlowKey = "QFXAddonManager.openOptions"
+assert(QFXGlow:IsActive(openButton, optionsGlowKey), "Manual options mode must highlight the open button")
+W:SetMotionEnabled(true)
+W:Refresh(UI.detailPanel.factoryContent)
+local optionsGlow = QFXGlow._runtime.hosts[openButton][optionsGlowKey]
+assert(QFXGlow:GetRenderedStyle(openButton, optionsGlowKey) == "pixel" and #optionsGlow.textures == 8
+    and optionsGlow.options.padding == 0, "Open options uses eight light segments along the button edge")
+local segment = optionsGlow.textures[1]
+local _, _, _, startX, startY = segment:GetPoint(1)
+QFXGlow._Tick(0.15)
+local _, _, _, nextX, nextY = segment:GetPoint(1)
+assert(nextX ~= startX or nextY ~= startY, "The segments must move along the edge")
+W:SetMotionEnabled(false)
+W:Refresh(UI.detailPanel.factoryContent)
+local phase = optionsGlow.phase
+QFXGlow._Tick(0.15)
+assert(optionsGlow.phase == phase and QFXGlow:IsActive(openButton, optionsGlowKey),
+    "Reduced motion keeps a static open options hint")
 combat = true; W:Refresh(); assert(not W.lastRefreshError, W.lastRefreshError)
+assert(not QFXGlow:IsActive(openButton, optionsGlowKey), "Combat pauses the open options hint")
 openButton:Click(); assert(not AM.openedOptions and openButton.alpha == 0.35, "Open settings must be blocked in combat")
 combat = false; W:Refresh(); assert(not W.lastRefreshError, W.lastRefreshError)
+assert(QFXGlow:IsActive(openButton, optionsGlowKey), "Leaving combat restores the hint")
 openButton:Click(); assert(AM.openedOptions == "Addon2" and openButton.alpha == 1 and not AM.loadedNow, "Only Open Options must remain available")
+AM.openedOptions = nil
+clickToggle:Click()
+assert(AM.db.ui.openOptionsOnCardClick and clickToggle._state and not AM.openedOptions)
+assert(not QFXGlow:IsActive(openButton, optionsGlowKey), "Auto-open mode must clear the hint")
+
+-- A center panel dismisses registered special frames before it appears.
+local function DismissSpecialFrames()
+    for _, name in ipairs(UISpecialFrames) do
+        local frame = _G[name]
+        if frame and frame:IsShown() then frame:Hide() end
+    end
+end
+local launchOptions = AM.OpenRegisteredOptions
+SettingsPanel = CreateFrame("Frame", nil, UIParent)
+SettingsPanel:Hide()
+AM.OpenRegisteredOptions = function(name)
+    launchOptions(name)
+    DismissSpecialFrames()
+    SettingsPanel:Show()
+    return true
+end
+for _, animated in ipairs({ false, true }) do
+    W:SetMotionEnabled(animated)
+    if animated then pairRow._rightSlot.region:Click() else openButton:Click() end
+    local bar = assert(UI.frame.collapsedBar)
+    assert(AM.openedOptions == "Addon2" and SettingsPanel:IsShown()
+        and UI.mainCollapsed and bar:IsVisible() and not UI.frame.body:IsVisible() and not UI.frame._qfxClosing,
+        "Opening game Settings must leave a folded manager, including during its close animation")
+    SettingsPanel:Hide()
+    DismissSpecialFrames()
+    assert(bar:IsVisible(), "The fold bar must survive closing game Settings")
+    bar.expand:Click()
+    assert(not UI.mainCollapsed and UI.frame.body:IsVisible() and AM.selected == data[2],
+        "Expanding the fold bar must restore the selected plugin")
+    local registrations = 0
+    for _, name in ipairs(UISpecialFrames) do
+        if name == "QFXAddonManagerFrame" then registrations = registrations + 1 end
+    end
+    assert(registrations == 1, "Expansion must restore a single Escape registration")
+end
+W:SetMotionEnabled(false)
+SettingsPanel:Show()
+AM.OpenRegisteredOptions = function(name)
+    launchOptions(name)
+    return true
+end
+openButton:Click()
+assert(not UI.mainCollapsed, "An already visible game Settings panel must not fold an unrelated native launcher")
+AM.OpenRegisteredOptions = launchOptions
+SettingsPanel:Hide()
+SettingsPanel = nil
+AM.openedOptions = nil
+UI.OpenSelectedNativeOptions = launchSelection
+data[3].adapted = false
+AM.SelectItem(data[3]); UI.RefreshDetail()
+local commandRow
+for _, row in ipairs({UI.detailPanel.factoryContent:GetChildren()}) do
+    local region = row._leftRegion
+    if row:IsShown() and region and region._label:GetText() == AM.L.ADDON_OPTIONS_COMMAND then commandRow = row end
+end
+local commandInput = assert(commandRow)._leftRegion._control
+local customButton = assert(buttonByText(UI.detailPanel, AM.L.OPEN_OPTIONS))
+assert(select(5, commandRow:GetPoint(1)) > select(5, customButton:GetParent():GetParent():GetPoint(1)))
+clickToggle:Click()
+assert(not QFXGlow:IsActive(customButton, optionsGlowKey), "An empty command must not advertise a settings launcher")
+commandInput:SetFocus(); commandInput:SetText("  /testaddon config  ")
+customButton:Click()
+assert(AM.openedOptions == "Addon3" and AM.GetAddonOptionsCommand("Addon3") == "/testaddon config")
+assert(QFXGlow:IsActive(customButton, optionsGlowKey), "Saving a command makes the manual launcher glow")
+AM.openedOptions = nil
+commandInput:SetFocus(); commandInput:SetText("invalid")
+customButton:Click()
+assert(not AM.openedOptions and AM.GetAddonOptionsCommand("Addon3") == "/testaddon config")
+commandInput:SetFocus(); commandInput:SetText("")
+customButton:Click()
+assert(not AM.openedOptions and not AM.GetAddonOptionsCommand("Addon3"))
+assert(not QFXGlow:IsActive(customButton, optionsGlowKey), "Clearing the command removes the hint")
+clickToggle:Click()
+data[3].adapted = nil
+AM.SelectItem(data[2])
 data[2].loaded = true; UI.RefreshDetail()
 assert(not detailToggle() and cb._state, "Loading preserves middle-only enablement")
 combat = true; W:Refresh(); cb:Click()
@@ -989,6 +1114,10 @@ print("PASS: " .. GetLocale() .. " full-width content input/title anchors, toolt
 W:SetMotionEnabled(false)
 UI.Show()
 local scaleFrame, scaleDropdown = UI.frame, UI.frame.scaleDropdown
+local cardTogglePoint, cardToggleAnchor, cardToggleRelative, cardToggleX, cardToggleY = scaleFrame.cardOptionsHost:GetPoint(1)
+assert(cardTogglePoint == "RIGHT" and cardToggleAnchor == scaleFrame.scaleHost
+    and cardToggleRelative == "LEFT" and cardToggleX < 0 and cardToggleY == 0
+    and scaleFrame.cardOptionsToggle:IsVisible(), "The card preference switch sits directly left of the scale selector")
 assert(scaleFrame:GetScale() == 1 and scaleDropdown._label:GetText() == "100%")
 assert(({scaleFrame.scaleHost:GetPoint(1)})[1] == "TOP"
     and ({scaleFrame.scaleHost:GetPoint(1)})[4] == 0

@@ -187,6 +187,7 @@ function T.BuildDisplay(needle, category)
                         info.titleKey or "", info.descKey or "", group.titleKey or "", keywords }, " "))
                     item.info, item.keywords = info, keywords
                     item.title, item.titleZH, item.titleEN, item.notes = title, title, info.titleKey or key, note
+                    item.sortKeyLower = string.lower(title)
                     item.group, item.groupTitle = group.key, groupTitle
                 end
                 local haystack = item.haystack

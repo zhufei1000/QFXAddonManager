@@ -139,6 +139,7 @@ function QFXAM.CreateMinimapButton()
 end
 
 function QFXAM.Initialize()
+    if QFXAM.RegisterReloadShortcut then QFXAM.RegisterReloadShortcut() end
     if QFXAM.RegisterSharedMedia then QFXAM.RegisterSharedMedia() end
     QFXAM.InitDB()
     QFXAM.ApplyAddonDefaults()
@@ -149,6 +150,9 @@ function QFXAM.Initialize()
     QFXAM.ScanAddOns()
     RegisterOptionsPanel()
     QFXAM.CreateMinimapButton()
+    if QFXAM.db.ui.collectMinimapButtons and QFXAM.EnsureAdaptersLoaded() and QFXAM.RefreshMinimapButtons then
+        QFXAM.RefreshMinimapButtons()
+    end
     QFXAM.Print(L.SLASH_HINT or "Type /qfxam to open.")
 end
 
@@ -165,12 +169,29 @@ end
 -- them: mark dirty, then run one scan on a short timer.
 local rescanPending = false
 local function ScheduleRescan()
+    -- The client emits ADDON_LOADED for every addon while the world loads.
+    -- Only the open manager needs the fresh cache immediately; a hidden window
+    -- is rescanned when it is next shown, so keep the login storm out of Lua.
+    QFXAM.scanDirty = true
+    local ui = QFXAM.UI
+    local frame = ui and ui.frame
+    local collectMinimap = QFXAM.db and QFXAM.db.ui and QFXAM.db.ui.collectMinimapButtons
+    if not (frame and frame:IsShown())
+        and not (collectMinimap and QFXAM.RefreshMinimapButtons) then return end
     if rescanPending then return end
     rescanPending = true
     C_Timer.After(0.5, function()
         rescanPending = false
+        if not (QFXAM.UI and QFXAM.UI.frame and QFXAM.UI.frame:IsShown()) then
+            -- The window is hidden: only the optional minimap-button collector
+            -- needs late LOD buttons, not a full addon-list scan.
+            if collectMinimap and QFXAM.RefreshMinimapButtons then QFXAM.RefreshMinimapButtons() end
+            return
+        end
         if not QFXAM.ScanAddOns then return end
+        QFXAM.scanDirty = nil
         QFXAM.ScanAddOns()
+        if collectMinimap and QFXAM.RefreshMinimapButtons then QFXAM.RefreshMinimapButtons() end
         if QFXAM.UI and QFXAM.UI.Refresh and QFXAM.UI.frame and QFXAM.UI.frame:IsShown() then
             QFXAM.UI.Refresh(true)
         end
@@ -192,6 +213,9 @@ frame:SetScript("OnEvent", function(_, event, addonName)
     elseif event == "ADDON_LOADED" and addonName ~= QFXAM.name and QFXAM.db then
         ScheduleRescan()
     elseif event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_REGEN_DISABLED" then
+        if event == "PLAYER_REGEN_ENABLED" and QFXAM.RefreshMinimapButtons and QFXAM.db.ui.collectMinimapButtons then
+            QFXAM.RefreshMinimapButtons()
+        end
         if event == "PLAYER_REGEN_ENABLED" and QFXAM.classRulesPending and QFXAM.ApplyClassRules then
             QFXAM.ApplyAddonDefaults()
             QFXAM.ApplyClassRules()

@@ -87,10 +87,32 @@ local function Primary(item)
     return item.primary or (item.source and item.source.name) or item.name
 end
 
+-- The dependency graph only changes with the installed addon set or a new
+-- registration. Callers request it for every power click, detail refresh and
+-- tooltip; rebuilding it each time enumerates every installed addon and reads
+-- its dependencies. Cache one graph per scan/registration generation instead.
+local powerCache, inventoryCache
+
+local function CurrentPowerCacheGeneration()
+    return QFXAM.registrationGeneration or 0
+end
+
+function QFXAM.InvalidateAddonPowerCache()
+    powerCache, inventoryCache = nil, nil
+end
+
 function QFXAM.GetAddonPowerChildren(installed)
-    if not installed then
+    local cacheable = installed == nil
+    local generation, count
+    if cacheable then
+        generation = CurrentPowerCacheGeneration()
+        count = API.GetNumAddOns()
+        local cached = powerCache
+        if cached and cached.generation == generation and cached.count == count then
+            return cached.children, cached.roots
+        end
         installed = {}
-        for index = 1, API.GetNumAddOns() do
+        for index = 1, count do
             local name = API.GetAddOnInfo(index)
             if name then
                 installed[name] = { deps = API.GetAddOnDependencies(name) or {} }
@@ -150,12 +172,21 @@ function QFXAM.GetAddonPowerChildren(installed)
         end
         if not seen[parent] then roots[child] = parent end
     end
+    if cacheable then
+        powerCache = { generation = generation, count = count, children = children, roots = roots }
+    end
     return children, roots
 end
 
 local function Inventory()
+    local generation, count = CurrentPowerCacheGeneration(), API.GetNumAddOns()
+    local cachedInventory = inventoryCache
+    if cachedInventory and cachedInventory.generation == generation and cachedInventory.count == count then
+        return cachedInventory.installed, cachedInventory.ordered, cachedInventory.protected,
+            cachedInventory.children, cachedInventory.parents
+    end
     local installed, ordered, protected = {}, {}, {}
-    for index = 1, API.GetNumAddOns() do
+    for index = 1, count do
         local name = API.GetAddOnInfo(index)
         if name then
             local cached = QFXAM.Cache and QFXAM.Cache.addons and QFXAM.Cache.addons[name]
@@ -174,7 +205,10 @@ local function Inventory()
         end
     end
     for _, name in ipairs(ordered) do if protected[name] then Protect(name) end end
-    return installed, ordered, protected, QFXAM.GetAddonPowerChildren(installed)
+    local children, parents = QFXAM.GetAddonPowerChildren(installed)
+    inventoryCache = { generation = generation, count = count, installed = installed, ordered = ordered,
+        protected = protected, children = children, parents = parents }
+    return installed, ordered, protected, children, parents
 end
 
 -- Shared dependency/protection inventory; class rules keep their own state.

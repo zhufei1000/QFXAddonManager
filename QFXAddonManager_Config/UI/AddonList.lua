@@ -2,13 +2,27 @@ local QFXAM = _G.QFXAddonManager
 local UI = QFXAM.UI
 local L = QFXAM.L
 
+-- The list is re-read on every refresh. Reuse the pair tables so a refresh
+-- does not allocate one table per row just to hand two item references to the
+-- renderer.
+local displayPairs, displayPairCount = {}, 0
+local listSignature, listSignatureCount, listWidth, listHeight = {}, 0, nil, nil
+local suppressScrollRefresh = false
+local refreshingList = false
 local function ChunkDisplay()
-    local pairs = {}
     local display = QFXAM.Cache.display or {}
-    for i = 1, #display, 2 do
-        pairs[#pairs + 1] = { left = display[i], right = display[i + 1] }
+    local count = math.ceil(#display / 2)
+    for i = 1, count do
+        local pair = displayPairs[i]
+        if not pair then
+            pair = {}
+            displayPairs[i] = pair
+        end
+        pair.left, pair.right = display[(i - 1) * 2 + 1], display[i * 2]
     end
-    return pairs
+    for i = count + 1, displayPairCount do displayPairs[i] = nil end
+    displayPairCount = count
+    return displayPairs
 end
 
 local function ItemTooltip(slot)
@@ -92,7 +106,8 @@ local function MakeSlot()
             if not icon and not atlas then
                 icon, atlas, coords = ChildIcon(item)
             end
-            return icon, atlas, coords
+            if icon or atlas then return icon, atlas, coords end
+            return item.type == "toolboxFeature" and UI.MEDIA_ICON or UI.DEFAULT_ADDON_ICON
         end,
         tooltip = function() return ItemTooltip(slot) end,
         getHeaderIcons = function()
@@ -146,7 +161,9 @@ local function MakeSlot()
             UI.externalAutoKey = nil
             UI.RefreshList()
             UI.RefreshDetail()
-            if UI.OpenSelectedNativeOptions then UI.OpenSelectedNativeOptions(slot.item) end
+            if QFXAM.GetOpenOptionsOnCardClick() and UI.OpenSelectedNativeOptions then
+                UI.OpenSelectedNativeOptions(slot.item)
+            end
         end,
         onRightClick = function()
             if slot.item and UI.classEditing and UI.OpenClassPicker then UI.OpenClassPicker(slot.item) end
@@ -194,7 +211,13 @@ end
 
 function UI.ScrollListToTop()
     local panel = UI.addonListPanel
-    if panel and panel.factoryPage then panel.factoryPage:ScrollTo(0) end
+    if panel and panel.factoryPage then
+        -- Programmatic jumps must not trigger a second list render before the
+        -- caller's own refresh; only user wheel/thumb scrolling does that.
+        suppressScrollRefresh = true
+        panel.factoryPage:ScrollTo(0)
+        suppressScrollRefresh = false
+    end
 end
 
 function UI.CreateAddonList(parent)
@@ -215,51 +238,262 @@ function UI.CreateAddonList(parent)
     host:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -34)
     host:SetSize(panel:GetWidth() - 16, panel:GetHeight() - 42)
     local page = W:ScrollPage(host, { reserveBar = true, width = host:GetWidth(), height = host:GetHeight(),
-        point = "TOPLEFT", relPoint = "TOPLEFT", x = 0, y = 0 })
+        point = "TOPLEFT", relPoint = "TOPLEFT", x = 0, y = 0,
+        onScroll = function()
+            if suppressScrollRefresh or refreshingList then return end
+            if UI.RefreshListRows then UI.RefreshListRows()
+            elseif UI.RefreshList then UI.RefreshList() end
+        end })
     panel.factoryHost, panel.factoryPage, panel.isFactory = host, page, true
     W:ResetRows(page.content)
     local tileHeight = ((UI.categoryPanel and UI.categoryPanel.navRowH) or W.Theme.navRowH) * 2
     panel.tileHeight = tileHeight
-    local list, _, api = W:ListRows(page.content, 0, {
-        items = ChunkDisplay,
-        rowH = tileHeight + W.Theme.addonTileGap,
-        getRowHeight = function(_, _, row) return row._settings:GetHeight() + W.Theme.addonTileGap end,
-        rowBuilder = function(row)
-            -- Each addon button supplies its own selected/hover background.
-            for _, texture in ipairs({ row:GetRegions() }) do texture:Hide() end
-            local rowHost = CreateFrame("Frame", nil, row)
-            rowHost:SetSize(row:GetWidth() + W.Theme.pad * 2, tileHeight)
-            rowHost:SetPoint("TOPLEFT", row, "TOPLEFT", -W.Theme.pad, 0)
-            row._settingsHost = rowHost
-            row._leftSlot, row._rightSlot = MakeSlot(), MakeSlot()
-            W:BeginPage(rowHost)
-            local settings = W:AddonButtons(rowHost, 0, row._leftSlot.cfg, row._rightSlot.cfg,
-                { height = tileHeight, fitHeaderIcons = true,
-                    headerIconSize = tileHeight / 4, preserveTitlePosition = true })
-            W:EndPage()
-            settings:SetParent(rowHost)
-            settings:ClearAllPoints()
-            settings:SetPoint("TOPLEFT", rowHost, "TOPLEFT", W.Theme.pad, 0)
-            row._settings = settings
-            BindSlot(row._leftSlot, settings._leftRegion)
-            BindSlot(row._rightSlot, settings._rightRegion)
-        end,
-        rowUpdate = function(row, pair)
-            -- Re-read the measured scroll width; initial hidden layout may be 0.
-            row:SetWidth(W.ContentWidth(page.content))
-            row._settingsHost:SetWidth(row:GetWidth() + W.Theme.pad * 2)
-            row._settings:SetWidth(row:GetWidth())
-            FillSlot(row._leftSlot, pair.left)
-            FillSlot(row._rightSlot, pair.right)
-            row._settings:SetColumns(2)
-            row._settings._layout()
-            row._settingsHost:SetHeight(row._settings:GetHeight())
-            W:Refresh(row._settingsHost)
-            row._leftSlot.control, row._rightSlot.control = row._leftSlot.region._control, row._rightSlot.region._control
-        end,
-    })
+    -- Virtual row list: only the rows intersecting the scroll viewport (plus a
+    -- one-row buffer) own card controls. Rows are recycled through a small pool;
+    -- measured heights are cached so variable-height class-icon cards still get
+    -- correct positions and scrollbar geometry.
+    local rowGap = W.Theme.addonTileGap
+    local defaultRowH = tileHeight + rowGap
+    local list = CreateFrame("Frame", nil, page.content)
+    list:SetPoint("TOPLEFT", page.content, "TOPLEFT", 0, 0)
+    list:SetWidth(W.ContentWidth(page.content))
+    list:SetHeight(1)
+
+    local rowsByIndex, rowPool, pinnedRows = {}, {}, {}
+    local heights, rowTops = {}, {}
+    local currentPairs = {}
+    local itemCount, totalHeight = 0, 0
+    local lastContentHeight
+    local topsDirty = true
+
+    local function RowWidth()
+        local width = W.ContentWidth(page.content)
+        if width < 1 then width = 1 end
+        return width
+    end
+
+    local function RowHeight(index)
+        return heights[index] or defaultRowH
+    end
+
+    local function RebuildTops()
+        local y = 0
+        for index = 1, itemCount do
+            rowTops[index] = y
+            y = y + RowHeight(index)
+        end
+        for index = itemCount + 1, #rowTops do rowTops[index] = nil end
+        totalHeight = y
+        topsDirty = false
+    end
+
+    local function RowTop(index)
+        if topsDirty then RebuildTops() end
+        return rowTops[index] or 0
+    end
+
+    local function BuildRow()
+        -- Each addon button supplies its own selected/hover background.
+        local row = CreateFrame("Frame", nil, list)
+        for _, texture in ipairs({ row:GetRegions() }) do texture:Hide() end
+        local rowHost = CreateFrame("Frame", nil, row)
+        rowHost:SetSize(RowWidth() + W.Theme.pad * 2, tileHeight)
+        rowHost:SetPoint("TOPLEFT", row, "TOPLEFT", -W.Theme.pad, 0)
+        row._settingsHost = rowHost
+        row._leftSlot, row._rightSlot = MakeSlot(), MakeSlot()
+        W:BeginPage(rowHost)
+        local settings = W:AddonButtons(rowHost, 0, row._leftSlot.cfg, row._rightSlot.cfg,
+            { height = tileHeight, fitHeaderIcons = true,
+                headerIconSize = tileHeight / 4, preserveTitlePosition = true })
+        W:EndPage()
+        settings:SetParent(rowHost)
+        settings:ClearAllPoints()
+        settings:SetPoint("TOPLEFT", rowHost, "TOPLEFT", W.Theme.pad, 0)
+        row._settings = settings
+        BindSlot(row._leftSlot, settings._leftRegion)
+        BindSlot(row._rightSlot, settings._rightRegion)
+        row:Hide()
+        return row
+    end
+
+    local function AcquireRow()
+        local row = table.remove(rowPool)
+        if not row then row = BuildRow() end
+        row:Show()
+        return row
+    end
+
+    local function ReleaseRow(row)
+        if W.StopMotion then W:StopMotion(row) end
+        row:Hide()
+        row._index = nil
+        rowPool[#rowPool + 1] = row
+    end
+
+    local function ConfigureRow(row, pair, index)
+        row._index, row._item = index, pair
+        row:SetWidth(RowWidth())
+        row._settingsHost:SetWidth(row:GetWidth() + W.Theme.pad * 2)
+        row._settings:SetWidth(row:GetWidth())
+        FillSlot(row._leftSlot, pair and pair.left)
+        FillSlot(row._rightSlot, pair and pair.right)
+        row._settings:SetColumns(2)
+        row._settings._layout()
+        row._settingsHost:SetHeight(row._settings:GetHeight())
+        W:Refresh(row._settingsHost)
+        row._leftSlot.control, row._rightSlot.control = row._leftSlot.region._control, row._rightSlot.region._control
+        local height = row._settings:GetHeight() + rowGap
+        row:SetHeight(height)
+        if heights[index] ~= height then
+            heights[index] = height
+            topsDirty = true
+        end
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -RowTop(index))
+        row:Show()
+    end
+
+    local function VisibleRange()
+        if itemCount == 0 then return 0, 0 end
+        if topsDirty then RebuildTops() end
+        local offset = page.GetOffset and page:GetOffset() or 0
+        local viewHeight = page.frame and page.frame:GetHeight() or 0
+        local pad = defaultRowH
+        local limit = offset + viewHeight + pad
+        -- rowTops is monotonic and row heights are positive, so the first row
+        -- whose bottom crosses the viewport can be found without walking all
+        -- installed addons on every scroll event.
+        local low, high = 1, itemCount
+        local threshold = offset - pad
+        while low < high do
+            local mid = math.floor((low + high) / 2)
+            if (rowTops[mid] or 0) + RowHeight(mid) > threshold then
+                high = mid
+            else
+                low = mid + 1
+            end
+        end
+        if low > itemCount or (rowTops[low] or 0) >= limit then return 0, 0 end
+        local last = low
+        while last < itemCount and (rowTops[last + 1] or 0) < limit do
+            last = last + 1
+        end
+        return low, last
+    end
+
+    local function Render(reset, updateExisting, refreshItems)
+        if updateExisting == nil then updateExisting = true end
+        if reset or refreshItems ~= false then
+            currentPairs = ChunkDisplay()
+            itemCount = #currentPairs
+        end
+        if reset then
+            -- heights is sparse (only measured rows); # is not a safe bound.
+            for index in pairs(heights) do heights[index] = nil end
+            topsDirty = true
+        end
+        if reset then
+            for index, row in pairs(rowsByIndex) do
+                if not pinnedRows[row] then
+                    rowsByIndex[index] = nil
+                    ReleaseRow(row)
+                end
+            end
+        end
+        -- Clamp the scroll offset against the new (possibly shorter) list before
+        -- choosing rows; otherwise filtering while scrolled down leaves a blank
+        -- window until the next user scroll.
+        if topsDirty then RebuildTops() end
+        local initialHeight = math.max(totalHeight, 1)
+        if initialHeight ~= lastContentHeight then
+            lastContentHeight = initialHeight
+            page:SetContentHeight(initialHeight)
+        end
+        local first, last = VisibleRange()
+        local keep = {}
+        local function Ensure(index)
+            local row = rowsByIndex[index]
+            if not row then
+                row = AcquireRow()
+                rowsByIndex[index] = row
+            end
+            if updateExisting or row._index ~= index or row._item ~= currentPairs[index]
+                or not row:IsShown() then
+                ConfigureRow(row, currentPairs[index], index)
+            end
+            keep[row] = true
+        end
+        if first > 0 then
+            for index = first, last do Ensure(index) end
+        end
+        -- A newly measured class-icon row can change later row positions.
+        topsDirty = true
+        local first2, last2 = VisibleRange()
+        if first2 > 0 and (first2 < first or last2 > last) then
+            for index = first2, last2 do Ensure(index) end
+        end
+        for index, row in pairs(rowsByIndex) do
+            if not keep[row] then
+                if pinnedRows[row] then
+                    row:Hide()
+                else
+                    rowsByIndex[index] = nil
+                    ReleaseRow(row)
+                end
+            end
+        end
+        RebuildTops()
+        for index, row in pairs(rowsByIndex) do
+            if keep[row] or pinnedRows[row] then
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -(rowTops[index] or 0))
+            end
+        end
+        list:SetWidth(RowWidth())
+        local contentHeight = math.max(totalHeight, 1)
+        if list:GetHeight() ~= contentHeight then list:SetHeight(contentHeight) end
+        if contentHeight ~= lastContentHeight then
+            lastContentHeight = contentHeight
+            page:SetContentHeight(contentHeight)
+        end
+    end
+
+    local function EnsureRow(index, pin)
+        if index < 1 then return nil end
+        local row = rowsByIndex[index]
+        if not row then
+            if index > itemCount then return nil end
+            row = AcquireRow()
+            rowsByIndex[index] = row
+        end
+        if pin then pinnedRows[row] = true end
+        if index > itemCount then
+            -- Keep the old factory contract: a retained/pinned row can be
+            -- inspected while the current filter is empty. It stays hidden.
+            row:Hide()
+            return row
+        end
+        if row._index ~= index or row._item ~= currentPairs[index] or not row:IsShown() then
+            ConfigureRow(row, currentPairs[index], index)
+        end
+        row:Show()
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", list, "TOPLEFT", 0, -RowTop(index))
+        return row
+    end
+
+    local api = {
+        GetCount = function() return itemCount end,
+        GetRow = function(_, index) return EnsureRow(index, true) end,
+        -- RevealRows only needs a temporary row for the entrance animation; it
+        -- must not pin the whole visible window against later recycling.
+        GetRowForReveal = function(_, index) return EnsureRow(index, false) end,
+        GetRowTop = function(_, index) return RowTop(index) end,
+        GetRowHeight = function(_, index) return RowHeight(index) end,
+        Render = function() Render(false) end,
+    }
     panel.factoryList, panel.factoryApi = list, api
-    page:SetContentHeight(list:GetHeight())
+    panel.virtualRender = Render
 
     panel.empty = UI.CreateFont(panel, "GameFontDisable", L.SEARCH_EMPTY or "No addons matched.")
     panel.empty:SetPoint("CENTER", panel, "CENTER", 0, 20)
@@ -278,19 +512,44 @@ function UI.CreateAddonList(parent)
     return panel
 end
 
-function UI.RefreshList()
+function UI.RefreshListRows()
     local panel = UI.addonListPanel
-    if not panel then return end
+    if not panel or refreshingList or not panel.virtualRender then return end
+    refreshingList = true
+    panel.virtualRender(false, false, false)
+    refreshingList = false
+end
+
+function UI.RefreshList(force)
+    local panel = UI.addonListPanel
+    if not panel or refreshingList then return end
+    refreshingList = true
     local category = QFXAM.State.category
     local recommended = category == "recommended"
     local search = QFXAM.State.search
+    local display = QFXAM.Cache.display or {}
+    local displayCount = #display
+    local contentWidth = panel.factoryPage.content:GetWidth()
+    local viewHeight = panel.factoryPage.frame:GetHeight()
+    -- Same rows and viewport can reuse measured row heights; a filter change,
+    -- resize or forced class-layout change resets the virtual layout.
+    local sameLayout = not force and listSignatureCount == displayCount
+        and listWidth == contentWidth and listHeight == viewHeight
+    if sameLayout then
+        for index = 1, displayCount do
+            if listSignature[index] ~= display[index] then sameLayout = false; break end
+        end
+    end
     panel.empty:SetText(recommended and (not search or search == "") and L.RECOMMENDED_EMPTY or L.SEARCH_EMPTY)
     panel.empty:SetWordWrap(false)
     panel.factoryPage:Refresh()
-    panel.factoryApi.Render()
-    panel.factoryList:SetWidth(UI.GetWidgets().ContentWidth(panel.factoryPage.content))
-    panel.factoryPage:SetContentHeight(panel.factoryList:GetHeight())
-    local count = #(QFXAM.Cache.display or {})
+    if panel.virtualRender then panel.virtualRender(not sameLayout, true, true) end
+    for index = 1, displayCount do listSignature[index] = display[index] end
+    for index = displayCount + 1, listSignatureCount do listSignature[index] = nil end
+    listSignatureCount = displayCount
+    listWidth = panel.factoryPage.content:GetWidth()
+    listHeight = panel.factoryPage.frame:GetHeight()
+    local count = displayCount
     panel.header:SetText(recommended and L.RECOMMENDED_ADDONS or (category == "toolbox" and L.TOOLBOX
         or (category == "single" and L.SINGLE_ADDONS or L.ADAPTED_ADDONS)))
     panel.count:SetText(tostring(count))
@@ -305,4 +564,5 @@ function UI.RefreshList()
             rowH = panel.tileHeight + UI.GetWidgets().Theme.addonTileGap,
         })
     end
+    refreshingList = false
 end

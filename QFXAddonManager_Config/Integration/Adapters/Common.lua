@@ -1,21 +1,27 @@
 local QFXAM = _G.QFXAddonManager or select(2, ...)
 
--- Installation, unlike loaded/enabled state, is fixed for this UI session.
--- Cache both hits and misses; disabled and load-on-demand addons still qualify.
+-- Installation is fixed for the session. Use the existing scan when available;
+-- only early Config loads need to cache individual named queries.
 local installed = {}
 local function IsInstalled(...)
+    local cache = QFXAM.Cache
+    local snapshot = cache and cache.list and #cache.list > 0 and cache.addons
     for i = 1, select("#", ...) do
         local name = select(i, ...)
         local key = string.lower(name)
-        local present = installed[key]
-        if present == nil then
-            local api = QFXAM.API
-            local found, _, _, _, reason
-            if api and api.GetAddOnInfo then found, _, _, _, reason = api.GetAddOnInfo(name) end
-            present = found ~= nil and reason ~= "MISSING"
-            installed[key] = present
+        if snapshot then
+            if snapshot[key] then return true end
+        else
+            local present = installed[key]
+            if present == nil then
+                local api = QFXAM.API
+                local found, _, _, _, reason
+                if api and api.GetAddOnInfo then found, _, _, _, reason = api.GetAddOnInfo(name) end
+                present = found ~= nil and reason ~= "MISSING"
+                installed[key] = present
+            end
+            if present then return true end
         end
-        if present then return true end
     end
     return false
 end
@@ -58,25 +64,34 @@ function A.NativeOptions(open)
     end
 end
 
--- Resolve the original command, including AceConsole-generated registration keys.
--- Discovery runs only on an explicit settings click; adapters never register commands.
-function A.CallNativeSlash(command, argument)
-    command = string.lower(command)
+-- Commands already used in chat may have been moved from SlashCmdList to
+-- Blizzard's hash. Prefer a newly registered handler over the cached one.
+local function FindNativeSlash(command)
     for key, handler in pairs(SlashCmdList or {}) do
         if type(key) == "string" and type(handler) == "function" then
             local index = 1
             local alias = rawget(_G, "SLASH_" .. key .. index)
             while type(alias) == "string" do
                 if string.lower(alias) == command then
-                    handler(argument or "")
-                    return true
+                    return handler, key
                 end
                 index = index + 1
                 alias = rawget(_G, "SLASH_" .. key .. index)
             end
         end
     end
-    return false
+    local alias = command:upper()
+    return hash_SlashCmdList and hash_SlashCmdList[alias], hash_ChatTypeInfoList and hash_ChatTypeInfoList[alias]
+end
+
+function A.CallNativeSlash(command, argument, addonOnly)
+    command = command:lower()
+    if addonOnly and (command == "/rl" or (IsSecureCmd and IsSecureCmd(command))) then return false end
+    local handler, key = FindNativeSlash(command)
+    if type(handler) ~= "function" then return false end
+    if addonOnly and (type(key) ~= "string" or (SLASH_COMMAND and SLASH_COMMAND[key])) then return false end
+    handler(argument or "")
+    return true
 end
 
 function A.NativeSlash(command, argument)

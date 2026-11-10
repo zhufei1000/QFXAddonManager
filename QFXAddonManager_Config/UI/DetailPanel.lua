@@ -34,14 +34,27 @@ local function GetItemNote(item, primaryInfo)
 end
 
 -- Rebuild when selection/metadata changes; ordinary refreshes reuse the page.
-local function ClearFactoryContent(content)
+-- Destroyed entries are unparented as well as hidden: a frame kept under the
+-- scroll content stays alive even when invisible, so merely hiding old detail
+-- pages made every browsed addon accumulate another hidden control tree.
+local function ClearFactoryContent(content, keep)
     if not content then return end
     if content.GetChildren then
         for _, child in ipairs({ content:GetChildren() }) do
-            if child.Hide then child:Hide() end
+            if keep and keep[child] then
+                child:Hide()
+            else
+                child:Hide()
+                -- Tests and older clients can reject a nil parent; fall back to
+                -- UIParent so the visual result is still "not in this page".
+                if not pcall(child.SetParent, child, nil) and UIParent then
+                    pcall(child.SetParent, child, UIParent)
+                end
+            end
         end
     end
 end
+UI.ClearFactoryContent = ClearFactoryContent
 
 local function GetItemChildren(item)
     if item and item.missing then return {} end
@@ -89,7 +102,9 @@ local function AppendChildCards(panel, y, W)
                     getSubText = function() return Current() and ChildStatus(Current()) or "" end,
                     getIcon = function()
                         local info = Current()
-                        if info then return info.icon, info.iconAtlas, info.iconCoords end
+                        if not info then return nil end
+                        if info.icon or info.iconAtlas then return info.icon, info.iconAtlas, info.iconCoords end
+                        return UI.DEFAULT_ADDON_ICON
                     end,
                     getValue = function() return Current() and Current().enabled or false end,
                     getLoaded = function() return Current() and Current().loaded or false end,
@@ -151,16 +166,17 @@ local function BuildFactoryDetail(panel, item, W)
     if not content then return end
     local primary = GetPrimaryName(item)
     local info = item and (item.source or (primary and QFXAM.Cache.addons[primary]) or item)
+    local openOptions = item and not item.missing and QFXAM.Registry.GetOpenOptions(primary or item.name)
+    local canEditCommand = item and item.adapted == false and not item.missing
+        and QFXAM.CanSetAddonOptionsCommand(primary)
     local presetName = primary or (item and item.name)
     local presetStatus = presetName and QFXAM.Presets and QFXAM.Presets.GetStatus(presetName) or nil
     local hasPreset = not (item and item.missing) and presetStatus ~= nil and presetStatus.hasContent == true
     panel.detailChildren = GetItemChildren(item)
-    panel.childPowerTargets = #panel.detailChildren > 0 and QFXAM.GetChildAddonPowerTargets
-        and QFXAM.GetChildAddonPowerTargets(primary) or {}
     local snapshot = item and {
         item.type or false, item.key or item.name or false, primary or false,
         item.protected and true or false,
-        QFXAM.Registry.GetOpenOptions(primary or item.name) or false,
+        openOptions or false, canEditCommand or false,
         GetItemNote(item, info), item.category or false,
         (info and info.version) or item.version or false,
         (info and info.author) or item.author or false,
@@ -185,8 +201,21 @@ local function BuildFactoryDetail(panel, item, W)
         W:Refresh(content)
         return
     end
+    -- This walks every installed addon (dependency + protection graph). It is
+    -- only needed when the child card list is actually rebuilt, not on every
+    -- search/combat/refresh pass with the same selection.
+    panel.childPowerTargets = #panel.detailChildren > 0 and QFXAM.GetChildAddonPowerTargets
+        and QFXAM.GetChildAddonPowerTargets(primary) or {}
     panel.detailSnapshot = snapshot
-    ClearFactoryContent(content)
+    -- The child-card holder is a reusable row list: keep it (hidden by the
+    -- clear) and let AppendChildCards re-anchor/render it. Everything else
+    -- from the previous page is unparented and can be collected.
+    local keep = panel.childCards and { [panel.childCards] = true } or nil
+    ClearFactoryContent(content, keep)
+    -- The toolbox category host belongs to the previous (toolbox) page and is
+    -- not in the keep set; drop the field so returning to Tools rebuilds it
+    -- instead of reusing an unparented frame.
+    panel.toolboxCategoryHost, panel.toolboxCategoryNav = nil, nil
     W:BeginPage(content)
     W:ResetRows(content)
     local y = -W.Theme.pad
@@ -200,12 +229,27 @@ local function BuildFactoryDetail(panel, item, W)
         local primary = GetPrimaryName(item)
         local primaryInfo = primary and QFXAM.Cache.addons[primary]
         local openName = primary or item.name
-        local hasOptions = not item.missing and QFXAM.Registry.GetOpenOptions(openName) ~= nil
         local combatTip = L.COMBAT_LOCKED_TIP or "Unavailable in combat."
 
         -- Card actions: Open Options for cards with an entry, Restore Defaults
         -- for adapted addons with a declared preset.
         local buttons = {}
+        local commandBox, commandValid
+        if canEditCommand then
+            local input, inputHeight = W:DualRow(content, y, {
+                type = "input", layout = "stacked", text = L.ADDON_OPTIONS_COMMAND,
+                tooltip = L.ADDON_OPTIONS_COMMAND_TIP,
+                getValue = function() return QFXAM.GetAddonOptionsCommand(openName) or "" end,
+                setValue = function(text)
+                    commandValid = QFXAM.SetAddonOptionsCommand(openName, text)
+                    if not commandValid then QFXAM.Print(L.ADDON_OPTIONS_COMMAND_INVALID) end
+                    W:Refresh(content)
+                end,
+            })
+            commandBox = input._leftRegion._control
+            if commandBox.SetMaxLetters then commandBox:SetMaxLetters(255) end
+            y = y - inputHeight
+        end
         if item.missing then
             y = W:Note(content, y, L.NOT_INSTALLED_TIP)
             if item.downloadURL then
@@ -220,16 +264,23 @@ local function BuildFactoryDetail(panel, item, W)
             if item.companionNote then y = W:Note(content, y, item.companionNote) end
             if item.companionURL then y = W:Note(content, y, item.companionURL) end
         end
-        if hasOptions then
+        if openOptions or canEditCommand then
             buttons[#buttons + 1] = {
                 text = L.OPEN_OPTIONS or "Open Options",
                 width = 110,
                 onClick = function()
+                    if commandBox and commandBox:HasFocus() then
+                        commandBox:ClearFocus()
+                        if not commandValid then return end
+                    end
                     local cur = QFXAM.GetSelectedItem()
                     local name = GetPrimaryName(cur)
-                    if name then QFXAM.OpenRegisteredOptions(name) end
+                    if canEditCommand and not openOptions and not QFXAM.GetAddonOptionsCommand(name) then
+                        QFXAM.Print(L.ADDON_OPTIONS_COMMAND_REQUIRED)
+                        return
+                    end
+                    if name then UI.OpenSettingsFromManager(name) end
                 end,
-                disabled = function() return not hasOptions end,
             }
         end
         if hasPreset then
@@ -272,6 +323,11 @@ local function BuildFactoryDetail(panel, item, W)
                 combatTooltip = combatTip,
                 buttons = buttons,
             }, nil)
+            if openOptions or canEditCommand then
+                UI.BindOpenOptionsAttention(row, function()
+                    return openOptions or QFXAM.GetAddonOptionsCommand(openName)
+                end)
+            end
             y = y - h
         end
 

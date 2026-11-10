@@ -205,6 +205,7 @@ end
 
 -- 图标名称索引：icon -> { 小写名称... }，弹窗每次显示时重建。
 local iconNames = {}
+local iconNamesDirty = true
 
 local function AddIconName(icon, name)
     if icon == nil or type(name) ~= "string" or name == "" then return end
@@ -250,11 +251,13 @@ local function ForEachEquipmentSet(callback)
 end
 
 local function RebuildIconNames()
+    if not iconNamesDirty then return end
     iconNames = {}
     IndexSpellBookNames()
     ForEachEquipmentSet(function(name, icon)
         AddIconName(icon, name)
     end)
+    iconNamesDirty = false
 end
 
 local function IconMatches(icon, query, numericQuery)
@@ -417,6 +420,15 @@ OnEvent = function(event, name)
     elseif event == "PLAYER_LOGIN" then
         InstallHooks()
         ApplyLiveLayout()
+    elseif event == "SPELLS_CHANGED" or event == "PLAYER_LEVEL_UP"
+        or event == "PLAYER_EQUIPMENT_CHANGED" or event == "EQUIPMENT_SETS_CHANGED" then
+        -- The cached icon/name index is only invalidated by data that can
+        -- actually change its source lists, not by every macro popup opening.
+        iconNamesDirty = true
+        if MacroPopupFrame and MacroPopupFrame:IsShown() and MacroPopupFrame.QFXIconSearch then
+            RebuildIconNames()
+            RefreshIconList(MacroPopupFrame)
+        end
     elseif event == "PLAYER_REGEN_ENABLED" and layoutPending then
         InstallHooks()
         RestoreNow()
@@ -429,8 +441,13 @@ ns.RegisterModule(KEY, {
     categoryToggleOnly = true,
     defaults = ns.GetModuleDefaults(KEY),
     OnEnable = function()
+        -- Re-enabling after a time with no event subscription must rebuild from
+        -- the current spellbook instead of keeping the old cache.
+        iconNamesDirty = true
         if ns.RegisterModuleEvents then
-            ns.RegisterModuleEvents(KEY, { "ADDON_LOADED", "PLAYER_LOGIN" }, OnEvent)
+            ns.RegisterModuleEvents(KEY, { "ADDON_LOADED", "PLAYER_LOGIN",
+                "SPELLS_CHANGED", "PLAYER_LEVEL_UP", "PLAYER_EQUIPMENT_CHANGED",
+                "EQUIPMENT_SETS_CHANGED" }, OnEvent)
         end
         InstallHooks()
         -- 停用期间快照已还原为原生几何，重新启用时需要再放大一次
@@ -438,7 +455,9 @@ ns.RegisterModule(KEY, {
     end,
     OnDisable = function()
         if ns.UnregisterModuleEvents then
-            ns.UnregisterModuleEvents(KEY, { "ADDON_LOADED", "PLAYER_LOGIN" })
+            ns.UnregisterModuleEvents(KEY, { "ADDON_LOADED", "PLAYER_LOGIN",
+                "SPELLS_CHANGED", "PLAYER_LEVEL_UP", "PLAYER_EQUIPMENT_CHANGED",
+                "EQUIPMENT_SETS_CHANGED" })
         end
         RestoreNow()
     end,

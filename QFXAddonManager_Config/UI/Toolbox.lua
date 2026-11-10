@@ -119,8 +119,8 @@ function UI.OpenAddonOptions(item)
         and window.host.qfxToolboxState.key ~= "@addon:" .. name then
         UI.CloseAddonSettingsWindow()
     end
-    if AM.Registry.GetOpenOptions and AM.Registry.GetOpenOptions(name) then
-        return AM.OpenRegisteredOptions(name)
+    if AM.Registry.GetOpenOptions(name) or AM.GetAddonOptionsCommand(name) then
+        return UI.OpenSettingsFromManager(name)
     end
     return false
 end
@@ -401,6 +401,7 @@ function UI.RefreshToolboxDetail()
     UI.externalDetailKey, UI.externalAutoKey = nil, nil
     UI.LayoutToolboxDetail()
     local key = item and item.key
+    local autoOpen = AM.GetOpenOptionsOnCardClick()
     UI.SetLabelText(panel.title, item and item.title or L.NO_SELECTION)
     UI.UpdateDetailCopyButton(panel, item)
     if UI.toolboxDetailKey ~= key then
@@ -409,14 +410,33 @@ function UI.RefreshToolboxDetail()
         UI.toolboxAutoKey = nil
     end
     local snapshot = (key or "") .. "\031" .. (item and item.notes or "") .. "\031"
-        .. AM.GetSearchKeywords(item) .. "\031" .. T.GetCardGroup()
+        .. AM.GetSearchKeywords(item) .. "\031" .. T.GetCardGroup() .. (autoOpen and "" or "\031manual")
     if panel.toolboxDescription ~= snapshot or panel.detailSnapshot then
         panel.toolboxDescription, panel.detailSnapshot = snapshot, nil
         local content = panel.factoryContent
-        for _, child in ipairs({ content:GetChildren() }) do child:Hide() end
+        -- The category navigation host and child-card row list are reused across
+        -- refreshes; every other child belongs to the old module page and must
+        -- be unparented so its frames can be collected instead of accumulating
+        -- hidden.
+        local keep = {}
+        if panel.toolboxCategoryHost then keep[panel.toolboxCategoryHost] = true end
+        if panel.childCards then keep[panel.childCards] = true end
+        if UI.ClearFactoryContent then
+            UI.ClearFactoryContent(content, keep)
+        else
+            for _, child in ipairs({ content:GetChildren() }) do child:Hide() end
+        end
         W:BeginPage(content); W:ResetRows(content)
         local y = -W.Theme.pad
         y = AppendToolboxCategories(panel, y, W)
+        if key and not autoOpen then
+            local row, height = W:DualRow(content, y, {
+                type = "buttonRow", blockInCombat = true, combatTooltip = L.COMBAT_LOCKED_TIP,
+                buttons = { { text = L.OPEN_OPTIONS, onClick = function() UI.OpenToolboxSettings() end } },
+            })
+            UI.BindOpenOptionsAttention(row)
+            y = y - height
+        end
         local _, h = W:SectionHeader(content, L.NOTES, y)
         y = W:Note(content, y - h, item and item.notes or L.TOOLBOX_DESCRIPTION or L.NO_SELECTION)
         y = UI.AppendSearchKeywords(content, y, item, W)
@@ -425,7 +445,7 @@ function UI.RefreshToolboxDetail()
         W:Refresh(panel.factoryContent)
         if panel.toolboxCategoryNav then panel.toolboxCategoryNav:Refresh() end
     end
-    if item and UI.toolboxAutoKey ~= key then
+    if autoOpen and item and UI.toolboxAutoKey ~= key then
         if not W:InCombatLocked() then
             UI.toolboxAutoKey = key
             UI.OpenToolboxSettings(key)
