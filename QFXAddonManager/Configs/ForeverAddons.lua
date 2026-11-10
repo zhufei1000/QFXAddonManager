@@ -1,5 +1,11 @@
 local _, AM = ...
 
+-- The published QFXfocus download currently targets Retail.
+local focus = AM.Modules.Get("qfxfocus")
+focus.showWhenMissing, focus.prioritizeUnloaded = false, false
+local pet = AM.Modules.Get("petstatusalert")
+pet.titleCN, pet.tip = AM.L.PSA_FOREVER_TITLE, AM.L.PSA_FOREVER_DESCRIPTION
+
 -- These companion packages lack the usual parent prefix or required TOC
 -- dependency. Declare their owner before login restores addon power states.
 local function RegisterFamily(name, category, support)

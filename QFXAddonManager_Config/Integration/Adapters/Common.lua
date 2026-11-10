@@ -148,7 +148,7 @@ function A.Register(name, data)
         }
         -- Native settings registration retains an optional card's download data.
         if previous and previous.showWhenMissing then
-            for _, field in ipairs({ "showWhenMissing", "titleCN", "titleEN", "author", "downloadURL", "companionNote", "companionURL" }) do
+            for _, field in ipairs({ "showWhenMissing", "prioritizeUnloaded", "titleCN", "titleEN", "author", "downloadURL", "companionNote", "companionURL" }) do
                 module[field] = previous[field]
             end
             module.tip = module.tip or previous.tip

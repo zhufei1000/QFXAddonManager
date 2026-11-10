@@ -21,6 +21,7 @@
 - 自身定位与 GCD 历史共用 `GCDService`。无限使用 `29515`，正式服使用 `61304`，两端通过 `C_Spell` 查询。无限实机施放灵猴守护后，`61304` 返回 `nil`，`29515` 返回 `isActive=true`、`duration=1.5`。
 - 不新增 `_Camelot.toc`；同一份包通过运行时分支同时支持正式服和无限。`QFX_SharedMedia` 的构建 TOC 自动继承主 TOC 的 Interface 行。
 - CurseForge 无限服热度前 100 项的原生设置适配使用同包 TOC 分支标记。无限服专属脚本仅在 `camelot` 加载，正式服专属脚本仅在 `standard` 加载。详见 [无限服热度榜适配](CURSEFORGE_FOREVER_TOP100.md)。
+- “推荐插件”在两端均提供 QFXSystemBar、QFXUnitframes、QFXMinimapTools、QFXSkillAlerts 和 PetStatusAlert 的未安装下载卡片。QFXfocus 的公开下载当前面向正式服，因此仅在正式服推荐。已安装插件按实际安装状态出现在原分类。
 
 ## 模式
 

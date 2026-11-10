@@ -12,12 +12,14 @@ QFXAM.Categories = {
     { key = "equipment", text = L.EQUIPMENT, tip = L.CATEGORY_EQUIPMENT_TIP },
     { key = "tool", text = L.TOOL, tip = L.CATEGORY_TOOL_TIP },
     { key = "other", text = L.OTHER or "Other" },
+    { key = "recommended", text = L.RECOMMENDED_ADDONS, navOnly = true },
 }
 
 -- One primary category for display, with additional functional tags for filtering.
 function QFXAM.MatchesCategory(item, category)
     category = QFXAM.NormalizeCategoryKey(category)
     if not category or category == "all" then return true end
+    if category == "recommended" then return item.missing == true end
     if category == "adapted" then return item.adapted end
     if QFXAM.NormalizeCategoryKey(item.category) == category then return true end
     for _, tag in ipairs(item.categories or {}) do if QFXAM.NormalizeCategoryKey(tag) == category then return true end end
@@ -36,7 +38,7 @@ end
 local function IsAssignableCategory(key)
     if key == "all" or key == "toolbox" or key == "single" then return false end
     for _, category in ipairs(QFXAM.Categories) do
-        if category.key == key then return true end
+        if category.key == key then return not category.navOnly end
     end
     return false
 end

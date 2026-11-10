@@ -281,14 +281,18 @@ end
 function UI.RefreshList()
     local panel = UI.addonListPanel
     if not panel then return end
-    panel.empty:SetText(L.SEARCH_EMPTY); panel.empty:SetWordWrap(false)
+    local category = QFXAM.State.category
+    local recommended = category == "recommended"
+    local search = QFXAM.State.search
+    panel.empty:SetText(recommended and (not search or search == "") and L.RECOMMENDED_EMPTY or L.SEARCH_EMPTY)
+    panel.empty:SetWordWrap(false)
     panel.factoryPage:Refresh()
     panel.factoryApi.Render()
     panel.factoryList:SetWidth(UI.GetWidgets().ContentWidth(panel.factoryPage.content))
     panel.factoryPage:SetContentHeight(panel.factoryList:GetHeight())
     local count = #(QFXAM.Cache.display or {})
-    panel.header:SetText(QFXAM.State.category == "toolbox" and L.TOOLBOX
-        or (QFXAM.State.category == "single" and L.SINGLE_ADDONS or L.ADAPTED_ADDONS))
+    panel.header:SetText(recommended and L.RECOMMENDED_ADDONS or (category == "toolbox" and L.TOOLBOX
+        or (category == "single" and L.SINGLE_ADDONS or L.ADAPTED_ADDONS)))
     panel.count:SetText(tostring(count))
     if UI.RefreshModeControls then UI.RefreshModeControls() end
     panel.empty:SetShown(count == 0)

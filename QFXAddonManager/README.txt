@@ -1,4 +1,4 @@
-QFXAddonManager v1.2.0
+QFXAddonManager v1.3.0
 
 本体包含主包 QFXAddonManager 和五个按需子包：QFXAddonManager_Config、QFXAddonManager_Toolbox_Daily、QFXAddonManager_Toolbox_Combat、QFXAddonManager_Toolbox_ChatBar、QFXAddonManager_Libraries_GlowFallback。根目录 QFX_SharedMedia 是必须一起保留的纯素材目录，无独立插件入口。
 
@@ -12,7 +12,7 @@ QFXfocus、PetStatusAlert 和 QFXSkillAlerts 需要独立下载，管理中心�
 
 使用 /qfxam、/qfxaddons 或小地图入口打开管理中心。/qfxt 与 /qfxbox 打开内置小工具。
 
-左侧“内置工具”仅显示内置模块；“全部插件”和其他功能分类显示适配插件／分组，并保留上述三项未安装下载卡片，底部“未适配插件”按父插件合并子包。中栏卡片一行两个，名称／图标选择说明，电源控制插件启停；启停后按提示双击“重载”。
+左侧“内置工具”仅显示内置模块；“全部插件”和其他功能分类显示已安装的适配插件／分组，底部“未适配插件”按父插件合并子包。“推荐插件”列出六款插件中当前客户端支持且尚未安装的项目，右栏可复制下载链接。QFXfocus 仅推荐给正式服。中栏卡片一行两个，名称／图标选择说明，电源控制已安装插件启停；启停后按提示双击“重载”。
 
 顶部秘境、团本、PVP、全局模式：单击在主界面右栏查看地图提醒设置，双击按模式标记启停并重载。秘境／团本／PVP选择开关用于编辑卡片排除标记；全局手动关闭同时加三种标记，手动开启同时清除。副本／PVP模式内电源可临时调整，下次应用模式恢复按标记启停。地图提醒默认关闭，填写地图ID并开启后仅提醒，确认才切换；已经处于对应模式时不重复提醒。地图列表可增加条目或恢复预设，底部地图名称与ID可复制。
 

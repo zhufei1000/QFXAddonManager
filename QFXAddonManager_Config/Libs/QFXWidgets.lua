@@ -1430,7 +1430,7 @@ end
 -- Additive detached controls for hosts which retain their own editor layout.
 -- State, labels and callbacks remain owned by the host; rendering stays here.
 local function InstallDetachedControls(W)
-    if (W.DETACHED_CONTROLS_REVISION or 0) >= 7 then return end
+    if (W.DETACHED_CONTROLS_REVISION or 0) >= 8 then return end
 
     -- Menu-row checkbox matching the CheckGrid cell: a bordered box with an
     -- inset fill. Only public factory methods are used so an upgraded legacy
@@ -1715,36 +1715,42 @@ local function InstallDetachedControls(W)
             catcher:SetFrameStrata("TOOLTIP"); catcher:SetFrameLevel(level - 10)
             menu:SetFrameStrata("TOOLTIP"); menu:SetFrameLevel(level)
         end
-        local query, display, rowsAPI, rowsHolder, page = "", {}
+        local query, display, rowsAPI, page = "", {}
+        local rowHeight, inset, maxHeight = 22, 6, 260
         local search = self:DetachedControl(menu, "input", {width = opts.width or 180})
-        search:SetPoint("TOPLEFT", 6, -6)
+        search:SetPoint("TOPLEFT", inset, -inset)
+        local host = CreateFrame("Frame", nil, menu)
+        host:SetPoint("BOTTOMRIGHT", -inset, inset)
         local function Pick(item)
             if not item or item.disabled or (opts.disabled and opts.disabled()) then return end
             local keep = opts.onPick and opts.onPick(item.key)
             if not keep then menu:Hide() end
         end
         local function Render()
+            local items = opts.items() or {}
+            local listHeight = math.max(1, #items) * rowHeight + 4
+            local showSearch = (opts.searchable and opts.searchable()) or listHeight + inset * 2 > maxHeight
+            local topInset = showSearch and 32 or inset
+            search:SetShown(showSearch)
+            menu:SetHeight(math.min(maxHeight, topInset + listHeight + inset))
+            host:SetPoint("TOPLEFT", inset, -topInset)
+
             display = {}
-            for _, item in ipairs(opts.items() or {}) do
+            for _, item in ipairs(items) do
                 local text = tostring(item.searchText or item.label or ""):lower()
                 if query == "" or text:find(query, 1, true) then display[#display + 1] = item end
             end
             if #display == 0 then display[1] = {label = opts.emptyText or "No results", disabled = true} end
-            if rowsAPI then
-                rowsAPI:Render()
-                local width = math.max(1, page.content:GetWidth() - self.Theme.pad * 2)
-                rowsHolder:SetWidth(width)
-                for i = 1, rowsAPI:GetCount() do rowsAPI:GetRow(i):SetWidth(width) end
-            end
-            if page then page:SetContentHeight(#display * 22 + 4) end
+            page:SetContentHeight(#display * rowHeight + 4)
+            rowsAPI:Render()
             if menu:IsShown() then LiftMenu() end
         end
-        local host = CreateFrame("Frame", nil, menu)
-        host:SetPoint("TOPLEFT", 6, -32); host:SetPoint("BOTTOMRIGHT", -6, 6)
-        page = self:ScrollPage(host, {reserveBar = true, scrollStep = 44})
-        rowsHolder, _, rowsAPI = self:ListRows(page.content, 0, {rowH = 22,
+        page = self:ScrollPage(host, {scrollStep = rowHeight * 2})
+        local rowsHolder, _, list = self:ListRows(page.content, 0, {rowH = rowHeight,
             items = function() return display end,
             rowBuilder = function(row)
+                local _, _, _, _, rowTop = row:GetPoint()
+                row:SetPoint("TOPRIGHT", 0, rowTop)
                 local hit = self:DetachedControl(row, "button")
                 hit:SetAllPoints(row)
                 -- ListRows paints the zebra wash on the row: the shared menu
@@ -1766,8 +1772,13 @@ local function InstallDetachedControls(W)
                 row.hit:SetAlpha(item.disabled and .35 or 1)
                 row.mark:SetShown(opts.checked and opts.checked(item.key) or false)
             end})
+        rowsAPI = list
+        rowsHolder:SetPoint("TOPLEFT", page.content, "TOPLEFT", 0, 0)
+        rowsHolder:SetPoint("TOPRIGHT", 0, 0)
         search:SetScript("OnTextChanged", function()
-            query = tostring(search:GetText() or ""):match("^%s*(.-)%s*$"):lower()
+            local text = tostring(search:GetText() or ""):match("^%s*(.-)%s*$"):lower()
+            if text == query then return end
+            query = text
             Render(); page:ScrollTo(0)
         end)
         search:SetScript("OnEnterPressed", function()
@@ -1784,13 +1795,13 @@ local function InstallDetachedControls(W)
             if self._editorDropdownMenu and self._editorDropdownMenu ~= menu then self._editorDropdownMenu:Hide() end
             self._editorDropdownMenu = menu
             LiftMenu()
-            local width = math.max(120, button:GetWidth())
-            menu:SetSize(width, 260); search:SetWidth(width - 12)
+            local width = math.max(170, button:GetWidth())
+            menu:SetWidth(width); search:SetWidth(width - inset * 2)
             menu:ClearAllPoints(); menu:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -2)
             menu:SetScale(button:GetEffectiveScale() / UIParent:GetEffectiveScale())
-            search:SetText(""); query = ""; Render(); page:ScrollTo(0)
+            query = ""; search:SetText(""); Render(); page:ScrollTo(0)
             for i, item in ipairs(display) do
-                if opts.checked and opts.checked(item.key) then page:ScrollTo((i-1)*22); break end
+                if opts.checked and opts.checked(item.key) then page:ScrollTo((i - 1) * rowHeight); break end
             end
             catcher:Show(); menu:Show()
             if opts.searchable and opts.searchable() then search:SetFocus() end
@@ -1867,7 +1878,7 @@ local function InstallDetachedControls(W)
         label:SetTextColor(unpack(enabled and S.sectionText or S.textMuted))
     end
 
-    W.DETACHED_CONTROLS_REVISION = 7
+    W.DETACHED_CONTROLS_REVISION = 8
 end
 
 -- Additive host-chrome capability: a small white-alpha glyph button for

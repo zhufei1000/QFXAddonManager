@@ -67,8 +67,12 @@ local function session(gameType, addons)
     for path in tocFiles(main .. "QFXAddonManager.toc", "Configs", gameType) do core(path) end
     local config, ns = root .. "QFXAddonManager_Config/", {}
     for path in tocFiles(config .. "QFXAddonManager_Config.toc", "Integration", gameType) do
-        assert(loadfile(config .. path))(AM.name, ns)
+        -- The preset event watcher is outside the settings adapter contract.
+        if path ~= "Integration/Initialize.lua" then
+            assert(loadfile(config .. path))(AM.name, ns)
+        end
     end
+    AM.adaptersReady = true
     assert(#loads == 0, "Reading adapters must not load an addon")
     return AM, queries, loads
 end
@@ -168,4 +172,51 @@ forever.IsAddonClassBlocked = nil
 assert(forever.OpenRegisteredOptions("SkillUpForever") and loads[1] == "SkillUpForever" and opened == 1)
 SkillUpForever_OnAddonCompartmentClick = nil
 assert(not forever.OpenRegisteredOptions("SkillUpForever"), "Missing native API must fail")
-print("PASS: " .. locale .. " Forever Top 100, 20 native launchers, support ownership, two dedicated pages, and bidirectional TOC isolation")
+
+local function CollectCards(manager, category)
+    QFXAddonManager = manager
+    manager.State.category = category
+    manager.ScanAddOns()
+    local found = {}
+    for _, card in ipairs(manager.Cache.display) do
+        assert(not found[card.primary], "Duplicate card: " .. card.primary)
+        found[card.primary] = card
+    end
+    return found
+end
+local both = {"QFXSystemBar", "QFXUnitframes", "QFXMinimapTools", "QFXSkillAlerts", "PetStatusAlert"}
+local emptyRetail = session("standard", {})
+for _, manager in ipairs({emptyRetail, absent}) do
+    local recommended = CollectCards(manager, "recommended")
+    local isRetail = manager == emptyRetail
+    assert(#manager.Cache.display == (isRetail and 6 or 5))
+    assert((recommended.QFXfocus ~= nil) == isRetail, "QFXfocus is recommended only on Retail")
+    for _, name in ipairs(both) do
+        local card = assert(recommended[name], "Missing recommendation: " .. name)
+        assert(card.missing and not card.loaded and not card.enabled and card.downloadURL and card.icon)
+        assert(not manager.Cache.addons[name] and not manager.CanExcludeModeItem(card))
+    end
+    assert(next(CollectCards(manager, "all")) == nil, "Downloads belong only in Recommended Addons")
+    assert(next(CollectCards(manager, "combat")) == nil, "Missing cards are hidden from functional categories")
+end
+local orphaned = session("camelot", {QFXSystemBar_Config = {}, QFXSkillAlerts_Config = {}})
+local orphanCards = CollectCards(orphaned, "recommended")
+assert(orphanCards.QFXSystemBar.missing and orphanCards.QFXSkillAlerts.missing, "Subpackages do not count as installation")
+local allInstalled = {QFXfocus = {}}
+for _, name in ipairs(both) do allInstalled[name] = {} end
+for _, gameType in ipairs({"standard", "camelot"}) do
+    local manager = session(gameType, allInstalled)
+    manager.API.IsAddOnLoaded = function() return false end
+    manager.API.GetAddOnEnableState = function() return 0 end
+    assert(next(CollectCards(manager, "recommended")) == nil, "Installed but disabled addons are never recommended")
+    local normal = CollectCards(manager, "all")
+    assert(#manager.Cache.display == 6)
+    assert(manager.CanAssignAddonCategory(normal.QFXUnitframes))
+    for name in pairs(allInstalled) do
+        local card = assert(normal[name], "Installed addon has no regular card: " .. name)
+        assert(not card.missing and not card.loaded and not card.enabled and manager.Registry.GetOpenOptions(name))
+        assert(not manager.SetAddonCategoryOverride(card, "recommended"), "Recommendations are not manually assignable")
+    end
+end
+
+print("PASS: " .. locale .. " Forever Top 100, 20 native launchers, support ownership, two dedicated pages, TOC isolation, and Retail/Forever recommendations")

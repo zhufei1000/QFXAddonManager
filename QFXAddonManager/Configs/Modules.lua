@@ -1,23 +1,36 @@
 local _, QFXAM = ...
+local L = QFXAM.L
 
 -- User-facing modules. This mirrors LNui/163UI's idea: one registered module
 -- represents the thing the player understands, while the implementation may be
 -- one addon, many child addons, or future preset actions.
 local M = {
     { key = "lycheegroup", title = "Lychee LFG", titleEN = "Lychee LFG", category = "raid", primary = "LycheeGroup", addons = { "LycheeGroup", "LycheeGroup_Group", "LycheeGroup_Notes", "LycheeGroup_UI" } },
-    { key = "petstatusalert", title = "PetStatusAlert", titleCN = "宠物与战士姿态提醒", titleEN = "PetStatusAlert",
+    { key = "petstatusalert", title = "PetStatusAlert", titleCN = L.PSA_TITLE, titleEN = "PetStatusAlert",
         category = "class", primary = "PetStatusAlert", addons = { "PetStatusAlert" }, tip = QFXAM.L.PSA_DESCRIPTION,
-        requirePrimary = true, showWhenMissing = true, author = "zhufei1000",
+        requirePrimary = true, showWhenMissing = true, prioritizeUnloaded = true, author = "zhufei1000",
         downloadURL = "https://www.curseforge.com/wow/addons/petstatusalert" },
     { key = "qfxtip", title = "QFXTip", category = "ui", primary = "QFXTip", addons = { "QFXTip" }, tip = QFXAM.L.QFXTIP_DESCRIPTION },
-    { key = "qfxsystembar", title = "QFXSystemBar", category = "ui", primary = "QFXSystemBar", addons = { "QFXSystemBar", "QFXSystemBar_Config", "QFXSystemBar_InfoBar", "QFXSystemBar_Locale", "QFXSystemBar_MeetingStone" }, tip = QFXAM.L.SYSTEMBAR_DESCRIPTION },
-    { key = "qfxfocus", title = "QFXfocus", titleCN = "QFX 焦点助手", titleEN = "QFXfocus",
+    { key = "qfxsystembar", title = "QFXSystemBar", titleCN = L.SYSTEMBAR_TITLE, category = "ui", primary = "QFXSystemBar",
+        addons = { "QFXSystemBar", "QFXSystemBar_Config", "QFXSystemBar_InfoBar", "QFXSystemBar_Locale", "QFXSystemBar_MeetingStone" },
+        tip = L.SYSTEMBAR_DESCRIPTION, requirePrimary = true, showWhenMissing = true, author = "zhufei1000",
+        downloadURL = "https://www.curseforge.com/wow/addons/qfx-systembar-micro-menu-clock-bags" },
+    { key = "qfxunitframes", title = "QFXUnitframes", titleCN = L.UNITFRAMES_TITLE, category = "ui",
+        primary = "QFXUnitframes", addons = { "QFXUnitframes" }, tip = L.UNITFRAMES_DESCRIPTION,
+        requirePrimary = true, showWhenMissing = true, author = "zhufei1000",
+        downloadURL = "https://www.curseforge.com/wow/addons/qfxunitframes" },
+    { key = "qfxminimaptools", title = "QFX Minimap Tools", titleCN = L.MINIMAP_TOOLS_TITLE, category = "map",
+        primary = "QFXMinimapTools", addons = { "QFXMinimapTools" }, tip = L.MINIMAP_TOOLS_DESCRIPTION,
+        requirePrimary = true, showWhenMissing = true, author = "zhufei1000",
+        downloadURL = "https://www.curseforge.com/wow/addons/qfx-minimap-tools-qfx" },
+    { key = "qfxfocus", title = "QFXfocus", titleCN = L.QFXFOCUS_TITLE, titleEN = "QFXfocus",
         category = "combat", primary = "QFXfocus", addons = { "QFXfocus" }, tip = QFXAM.L.QFXFOCUS_DESCRIPTION,
-        requirePrimary = true, showWhenMissing = true, author = "QFX",
+        requirePrimary = true, showWhenMissing = true, prioritizeUnloaded = true, author = "QFX",
         downloadURL = "https://www.curseforge.com/wow/addons/qfxfocus" },
-    { key = "qfxskillalerts", title = "QFXSkillAlerts", titleCN = "QFX 技能提醒", titleEN = "QFX Skill Alerts",
+    { key = "qfxskillalerts", title = "QFXSkillAlerts", titleCN = L.SKILLALERTS_TITLE, titleEN = "QFX Skill Alerts",
         category = "combat", primary = "QFXSkillAlerts", addons = { "QFXSkillAlerts", "QFXSkillAlerts_Config" },
-        tip = QFXAM.L.SKILLALERTS_DESCRIPTION, requirePrimary = true, showWhenMissing = true, author = "zhufei1000",
+        tip = QFXAM.L.SKILLALERTS_DESCRIPTION, requirePrimary = true, showWhenMissing = true,
+        prioritizeUnloaded = true, author = "zhufei1000",
         downloadURL = "https://www.curseforge.com/wow/addons/custom-spell-voice-alerts",
         companionNote = QFXAM.L.SKILLALERTS_COMPANION_NOTE,
         companionURL = "https://www.curseforge.com/wow/addons/ranranmedia" },
@@ -47,6 +60,7 @@ end
 local tags = {
     lycheegroup = { "chat" },
     petstatusalert = { "combat" }, qfxsystembar = { "tool" },
+    qfxunitframes = { "combat" }, qfxminimaptools = { "ui" },
     details = { "raid" }, dbm = { "combat" }, bigwigs = { "combat" },
     plater = { "combat" }, omnicd = { "raid" }, cell = { "class" },
     elvui = { "combat" }, bartender = { "combat" }, dominos = { "combat" },

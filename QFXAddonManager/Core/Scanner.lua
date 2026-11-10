@@ -570,8 +570,8 @@ local function SortDisplayList()
     end
     local rank = displayRank
     table.sort(QFXAM.Cache.display, function(a, b)
-        local firstA = not loaded[a] and a.moduleData ~= nil and a.moduleData.showWhenMissing == true
-        local firstB = not loaded[b] and b.moduleData ~= nil and b.moduleData.showWhenMissing == true
+        local firstA = not loaded[a] and a.moduleData ~= nil and a.moduleData.prioritizeUnloaded == true
+        local firstB = not loaded[b] and b.moduleData ~= nil and b.moduleData.prioritizeUnloaded == true
         if firstA ~= firstB then return firstA end
         if loaded[a] ~= loaded[b] then return loaded[a] end
         if a.type ~= b.type then return (rank[a.type] or 99) < (rank[b.type] or 99) end
@@ -598,7 +598,8 @@ function QFXAM.BuildDisplayList()
         for _, key in ipairs(Modules.order or {}) do
             local module = Modules.Get(key)
             local moduleInstalled = module and Modules.IsModuleInstalled(key)
-            if module and module.adapted ~= false and (moduleInstalled or module.showWhenMissing) then
+            if module and module.adapted ~= false
+                and (moduleInstalled or (category == "recommended" and module.showWhenMissing)) then
                 local installed, enabled, loaded = Modules.GetStats(key)
                 local primaryInfo = moduleInstalled and Modules.GetPrimaryInfo(key) or nil
                 local children = Modules.GetAddonList(key)

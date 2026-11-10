@@ -290,7 +290,7 @@ local function BuildFactoryDetail(panel, item, W)
             local tip = item.adapted and L.ASSIGN_CATEGORY_ADAPTED_TIP or L.ASSIGN_CATEGORY_TIP
             local values, order = { [default] = item.adapted and L.ASSIGN_CATEGORY_DEFAULT or L.ASSIGN_CATEGORY_NONE }, { default }
             for _, category in ipairs(QFXAM.Categories) do
-                if category.key ~= "all" and category.key ~= "toolbox" then
+                if category.key ~= "all" and category.key ~= "toolbox" and not category.navOnly then
                     values[category.key] = category.text
                     order[#order + 1] = category.key
                 end

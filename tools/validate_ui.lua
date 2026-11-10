@@ -831,10 +831,12 @@ UI.Hide()
 local oldCategories, oldCategoryPanel = AM.Categories, UI.categoryPanel
 load("Configs/Categories.lua")
 local categoryPanel = UI.CreateCategoryList(UIParent)
-assert(#categoryPanel.nav.items == 10 and categoryPanel.nav.items[1].key == "toolbox")
-local lastCategory = categoryPanel.nav.buttons.other
+assert(#categoryPanel.nav.items == 11 and categoryPanel.nav.items[1].key == "toolbox")
+assert(categoryPanel.nav.items[10].key == "other" and categoryPanel.nav.items[11].key == "recommended")
+local lastCategory = categoryPanel.nav.buttons.recommended
+assert(lastCategory._fullText == AM.L.RECOMMENDED_ADDONS)
 local lastPoint = { lastCategory:GetPoint(1) }
-assert(-lastPoint[5] + lastCategory:GetHeight() <= categoryPanel:GetHeight() - 32 - 90, "All ten navigation rows fit above the unadapted footer")
+assert(-lastPoint[5] + lastCategory:GetHeight() <= categoryPanel:GetHeight() - 32 - 90, "All navigation rows fit above the unadapted footer")
 assert(categoryPanel.nav.buttons.trade == nil and categoryPanel.nav.buttons.equipment._fullText == AM.L.EQUIPMENT)
 assert(categoryPanel.nav.buttons.class == nil and categoryPanel.nav.buttons.combat._fullText == AM.L.COMBAT)
 local itemsHit = categoryPanel.nav.buttons.equipment._hit
