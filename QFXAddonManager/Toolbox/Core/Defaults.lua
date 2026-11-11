@@ -520,7 +520,7 @@ ns.ModuleDefaults = {
         messageFontSize = 12,
         maxMessages = 300,
         soundEnabled = true,
-        soundName = "__QFX_DEFAULT_WHISPER__",
+        soundName = "QFX iPhone",
         button = { point = "CENTER", relativePoint = "CENTER", x = 360, y = 0 },
         window = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0, width = 620, height = 430 },
     },

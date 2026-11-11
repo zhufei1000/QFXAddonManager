@@ -1,4 +1,4 @@
--- Focused Forever checks for Classic stats, range probes, and GCD selection.
+-- Focused Forever checks for Classic stats, range probes, GCD selection, and whisper replies.
 -- No live frames are needed to exercise these runtime contracts.
 
 local function upvalue(fn, wanted)
@@ -201,5 +201,101 @@ end }
 local gcd = ns.GCDService:GetSnapshot(true)
 assert(gcd and gcd.startTime == 100 and gcd.duration == 1.5,
     "Forever GCD reads 29515 so the self marker and history share the Classic cooldown")
+
+local function loadWhisperHistory(forever)
+    local body
+    AM.ToolboxRuntime = { AddFile = function(_, _, fn) body = fn end }
+    _G.QFXAddonManagerToolboxNS = {
+        Compat = {
+            IsForever = function() return forever end,
+            SafeNonEmptyString = function(value)
+                return type(value) == "string" and value ~= "" and value or nil
+            end,
+            SafeNumber = function(value, fallback) return tonumber(value) or fallback end,
+        },
+    }
+    QFXAddonManagerToolboxDB = nil
+    assert(loadfile("QFXAddonManager_Toolbox_ChatBar/ChatBar/Core.lua"))(AM.name, AM)
+    body()
+    local history = assert(QFXAddonManagerToolboxNS.WhisperHistory)
+    history.enabled = true
+    history.EnsureConfig({ soundEnabled = false })
+    return history
+end
+
+time = os.time
+GetNormalizedRealmName = function() return "CN1Realm10RP" end
+local whisper = loadWhisperHistory(true)
+local fullName, recordedName = "青山 松柏", "青山 流水-CN1Realm10RP"
+whisper.HandleEvent("CHAT_MSG_WHISPER", "Hello", fullName)
+whisper.HandleEvent("CHAT_MSG_WHISPER", "Hello again", recordedName)
+local messages = whisper.GetData().messages
+assert(messages[1].name == fullName and messages[1].replyName == fullName,
+    "Forever must keep a two-part event sender without adding a realm")
+messages[2].replyName = nil -- An older persisted record can contain just the display name.
+whisper.RecountUnread()
+messages = whisper.GetData().messages
+
+local editBox = {
+    SetChatType = function(self, value) self.chatType = value end,
+    SetTellTarget = function(self, value) self.target = value end,
+    SetText = function(self, value) self.text = value end,
+}
+local bnetTarget, legacyTarget
+SELECTED_DOCK_FRAME = {}
+ChatFrameUtil = {
+    ChooseBoxForSend = function(frame)
+        assert(frame == SELECTED_DOCK_FRAME)
+        return editBox
+    end,
+    ActivateChat = function(box) assert(box == editBox); box.active = true end,
+    SendBNetTell = function(target) bnetTarget = target end,
+}
+ChatFrame_SendTell = function(target) legacyTarget = target end
+for index, target in ipairs({ fullName, recordedName }) do
+    editBox.active = false
+    assert(whisper.ReplyToMessage(messages[index]))
+    assert(editBox.active and editBox.chatType == "WHISPER" and editBox.target == target and editBox.text == "")
+    assert(not legacyTarget, "Forever replies must bypass slash-command parsing")
+end
+whisper.HandleEvent("CHAT_MSG_WHISPER_INFORM", "Reply", fullName)
+assert(messages[1].read and not messages[2].read, "Replies must distinguish two names sharing a first name")
+assert(whisper.ReplyToMessage({ isBN = true, bnAccountName = "Friend" }) and bnetTarget == "Friend")
+
+GetNormalizedRealmName = function() return "RetailRealm" end
+whisper = loadWhisperHistory(false)
+whisper.HandleEvent("CHAT_MSG_WHISPER", "Hello", "Tester")
+assert(whisper.ReplyToMessage(whisper.GetData().messages[1]) and legacyTarget == "Tester-RetailRealm")
+
+local sounds = {}
+local sharedMedia = {
+    Register = function(_, mediaType, key, path)
+        if mediaType == "sound" then sounds[key] = path end
+    end,
+    Fetch = function(_, mediaType, key)
+        if mediaType == "sound" then return sounds[key] end
+    end,
+}
+LibStub = function(name) return name == "LibSharedMedia-3.0" and sharedMedia or nil end
+assert(loadfile("QFXAddonManager/Core/SharedMedia.lua"))(AM.name, AM)
+assert(AM.RegisterSharedMedia())
+local soundFile, soundKit
+PlaySoundFile = function(path) soundFile = path; return true end
+PlaySound = function(kit) soundKit = kit; return true end
+SOUNDKIT = { TELL_MESSAGE = 3081 }
+
+local oldSound = { soundName = "__QFX_DEFAULT_WHISPER__" }
+whisper.EnsureConfig(oldSound)
+assert(oldSound.soundName == "QFX iPhone" and whisper.PlayWhisperAlert())
+assert(soundFile == "Interface\\AddOns\\QFX_SharedMedia\\Media\\Sounds\\iphone.ogg" and not soundKit)
+
+whisper.EnsureConfig({ soundName = "QFX Alarm", soundEnabled = false })
+soundFile = nil
+assert(not whisper.PlayWhisperAlert() and not soundFile)
+assert(whisper.PlayWhisperAlert(true) and soundFile == sounds["QFX Alarm"])
+
+whisper.EnsureConfig({ soundName = whisper.BLIZZARD_SOUND_KEY })
+soundFile = nil
+assert(whisper.PlayWhisperAlert() and soundKit == SOUNDKIT.TELL_MESSAGE and not soundFile)
 
 print("Forever toolbox checks passed")

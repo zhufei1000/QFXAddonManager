@@ -177,12 +177,15 @@ end
 
 local function SoundOptions(db, ui)
     local options = {
-        { text = ui.L("WHISPER_HISTORY_SOUND_DEFAULT"), value = M.DEFAULT_SOUND_KEY },
+        { text = M.DEFAULT_SOUND_KEY, value = M.DEFAULT_SOUND_KEY },
+        { text = ui.L("WHISPER_HISTORY_SOUND_DEFAULT"), value = M.BLIZZARD_SOUND_KEY },
     }
-    local seen = { [M.DEFAULT_SOUND_KEY] = true }
+    local seen = { [M.DEFAULT_SOUND_KEY] = true, [M.BLIZZARD_SOUND_KEY] = true }
     for _, name in ipairs(M.GetSharedMediaSoundNames()) do
-        options[#options + 1] = { text = name, value = name }
-        seen[name] = true
+        if not seen[name] then
+            options[#options + 1] = { text = name, value = name }
+            seen[name] = true
+        end
     end
     local selected = type(db.soundName) == "string" and db.soundName or M.DEFAULT_SOUND_KEY
     if not seen[selected] then

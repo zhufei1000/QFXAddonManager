@@ -6,7 +6,7 @@
 ## Notes-zhCN: 使用轻量 QFX 风格控制台管理已安装插件。
 ## Notes-zhTW: 使用輕量 QFX 風格控制台管理已安裝插件。
 ## Author: Qunfeixuan
-## Version: 1.4.0
+## Version: 1.4.1
 ## X-Curse-Project-ID: 1773703
 ## X-Website: https://github.com/zhufei1000/QFXAddonManager
 ## SavedVariables: QFXAddonManagerDB, QFXAddonManagerToolboxDB, QFXToolBoxDB

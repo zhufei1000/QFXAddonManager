@@ -9,7 +9,8 @@ local M = ns.WhisperHistory
 M.KEY = "whisper_history"
 M.ICON_PATH = "Interface\\AddOns\\QFXAddonManager\\Toolbox\\Core\\Media\\WhisperHistory\\whisper_unread.tga"
 M.DEFAULT_MAX_MESSAGES = 300
-M.DEFAULT_SOUND_KEY = "__QFX_DEFAULT_WHISPER__"
+M.DEFAULT_SOUND_KEY = "QFX iPhone"
+M.BLIZZARD_SOUND_KEY = "__QFX_BLIZZARD_WHISPER__"
 M.EVENTS = {
     "CHAT_MSG_WHISPER",
     "CHAT_MSG_WHISPER_INFORM",
@@ -43,6 +44,7 @@ M.SafeIsSecret = SafeIsSecret
 local SafeString = ns.Compat.SafeNonEmptyString
 
 local SafeNumber = ns.Compat.SafeNumber
+local IS_FOREVER = ns.Compat.IsForever()
 
 local function CopyPosition(value, fallback)
     value = type(value) == "table" and value or {}
@@ -131,6 +133,7 @@ function M.EnsureConfig(db)
     db.maxMessages = math.floor(Clamp(db.maxMessages, 50, 2000, M.DEFAULT_MAX_MESSAGES) + 0.5)
     db.soundEnabled = db.soundEnabled ~= false
     db.soundName = SafeString(db.soundName) or M.DEFAULT_SOUND_KEY
+    if db.soundName == "__QFX_DEFAULT_WHISPER__" then db.soundName = M.DEFAULT_SOUND_KEY end
     db.button = CopyPosition(db.button, { point = "CENTER", relativePoint = "CENTER", x = 360, y = 0 })
     db.window = CopyPosition(db.window, { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0, width = 620, height = 430 })
     db.window.width = Clamp(db.window.width, 420, 1100, 620)
@@ -178,7 +181,7 @@ function M.GetSharedMediaSoundNames()
 end
 
 local function TryPlaySharedMediaSound(soundName)
-    if soundName == M.DEFAULT_SOUND_KEY then return false end
+    if soundName == M.BLIZZARD_SOUND_KEY then return false end
     local media = M.GetSharedMedia()
     if not media or type(media.Fetch) ~= "function" or type(PlaySoundFile) ~= "function" then return false end
     local ok, soundFile = pcall(media.Fetch, media, "sound", soundName, true)
@@ -255,7 +258,8 @@ local function ValidateMessage(raw)
         message.bnTag = SafeString(raw.bnTag)
         message.bnAccountName = SafeString(raw.bnAccountName)
     else
-        message.replyName = M.NormalizeName(message.replyName or name) or name
+        local target = message.replyName or name
+        message.replyName = IS_FOREVER and target or M.NormalizeName(target) or target
     end
     return message
 end
@@ -476,6 +480,17 @@ function M.ReplyToMessage(message)
 
     local target = SafeString(message.replyName or message.name)
     if not target then return false end
+    if IS_FOREVER and ChatFrameUtil and ChatFrameUtil.ChooseBoxForSend and ChatFrameUtil.ActivateChat then
+        local editBox = ChatFrameUtil.ChooseBoxForSend(SELECTED_DOCK_FRAME)
+        if editBox and not editBox.disableActivate then
+            -- A Forever name can contain spaces. Use the native reply target directly.
+            editBox:SetChatType("WHISPER")
+            editBox:SetTellTarget(target)
+            editBox:SetText("")
+            ChatFrameUtil.ActivateChat(editBox)
+            return true
+        end
+    end
     if type(ChatFrame_SendTell) == "function" then
         return pcall(ChatFrame_SendTell, target, SELECTED_DOCK_FRAME)
     end
@@ -563,7 +578,7 @@ function M.AddReceivedWhisper(name, class, text, isBN, replyName, bnID, bnTag, b
         end
         message.bnTag, message.bnAccountName = safeTag, safeAccount
     else
-        message.name = M.NormalizeName(name) or name
+        message.name = IS_FOREVER and name or M.NormalizeName(name) or name
         message.replyName = message.name
     end
 

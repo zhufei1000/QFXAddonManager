@@ -133,7 +133,7 @@ ns.RegisterLocale("enUS", {
         ["WHISPER_HISTORY_SOUND_ENABLE_DESC"] = "Plays once when a new normal or Battle.net whisper is received.",
         ["WHISPER_HISTORY_SOUND_SELECT"] = "Alert sound",
         ["WHISPER_HISTORY_SOUND_SELECT_DESC"] = "Sounds are supplied by the optional external LibSharedMedia-3.0 library.",
-        ["WHISPER_HISTORY_SOUND_DEFAULT"] = "Default Whisper",
+        ["WHISPER_HISTORY_SOUND_DEFAULT"] = "Blizzard Whisper",
         ["WHISPER_HISTORY_SOUND_PREVIEW"] = "Preview sound",
         ["WHISPER_HISTORY_SOUND_LSM_AVAILABLE"] = "LibSharedMedia-3.0 detected. Registered external sounds are available in the list.",
         ["WHISPER_HISTORY_SOUND_LSM_MISSING"] = "LibSharedMedia-3.0 was not detected. The Blizzard default whisper sound remains available.",
