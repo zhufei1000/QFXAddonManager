@@ -699,6 +699,8 @@ ns.RegisterLocale("zhCN", {
         ["GCD History"] = "施法序列",
         ["Displays your recently cast spells in sequence."] = "按顺序显示最近施放的技能。",
         ["Range to Target"] = "目标距离",
+        ["Focus Distance"] = "焦点距离",
+        ["Focus %s"] = "焦点 %s",
         ["Displays exact target distance when available and safely falls back to estimated ranges."] = "可用时显示目标精确距离，受限时安全回退为估算区间。",
         ["Locked"] = "锁定",
         ["Combat Only"] = "仅战斗显示",

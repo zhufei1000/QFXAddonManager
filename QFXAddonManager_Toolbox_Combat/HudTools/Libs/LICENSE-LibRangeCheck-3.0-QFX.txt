@@ -1,27 +1,5 @@
 LibRangeCheck-3.0-QFX
 
-This QFX implementation is an independent Retail 12.x rewrite informed by the
-public API and architecture of LibRangeCheck-3.0. It retains attribution to the
-original project and is distributed under the same MIT license.
-
-Original project: LibRangeCheck-3.0
-Original authors: mitch0, WoWUIDev Community
-Upstream project: https://github.com/WeakAuras/LibRangeCheck-3.0
-Copyright (c) 2023 The WoWUIDev Community
-License: MIT
-
-QFX-specific implementation:
-- Friend, harm, resurrection, pet, and miscellaneous routing.
-- Separate combat-safe checker lists.
-- Retail 12.x secret-value validation and graceful precision fallback.
-- UnitDistanceSquared exact checks when the API confirms validity.
-- Active Retail spellbook resolution and C_Spell.IsSpellInRange interval probes.
-- Retail friendly and hostile item-range probe data derived from the MIT-licensed
-  LibRangeCheck-3.0 data set, with asynchronous data loading.
-- UnitInRange friendly coarse fallback.
-- No CheckInteractDistance, UnitPosition, LibStub, CallbackHandler,
-  classic-client branches, or cleanup ticker.
-
 MIT License
 
 Copyright (c) 2023 The WoWUIDev Community

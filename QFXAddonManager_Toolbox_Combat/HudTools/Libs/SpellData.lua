@@ -4,10 +4,7 @@ local addonName = ...
 local ns = _G.QFXAddonManagerToolboxNS
 if not ns then return end
 
--- Retail 12.x spell probes. These lists mirror the active Retail spell lists
--- used by the reference LibRangeCheck fork. The library resolves every entry
--- through the player's active spellbook before it becomes a checker, so
--- off-spec, unlearned, replaced, and invalid spell IDs are discarded.
+-- Resolve candidates against the active spellbook before checking range.
 --
 -- Entries may be a spell ID or { spellID, fallbackMaxRange }. The fallback is
 -- used only when live spell data reports no usable maximum range (mainly melee).
@@ -73,5 +70,25 @@ ns.LibRangeCheckQFXSpellData = {
         harm = { 355, 5246, 100 },
     },
 }
+
+if ns.Compat and ns.Compat.IsForever and ns.Compat.IsForever() then
+    local rankedProbes = {
+        DRUID = { 9912, 9835, { 9830, 5 }, { 9904, 5 }, { 9881, 5 }, { 9908, 5 } },
+        HUNTER = { 14287 },
+        MAGE = { 25306, 25304 },
+        PALADIN = { 10314 },
+        PRIEST = { 10934, 10894 },
+        ROGUE = { { 11294, 5 } },
+        SHAMAN = { 15208 },
+        WARLOCK = { 25307, 25311 },
+        WARRIOR = { { 25286, 5 } },
+    }
+    for class, ranked in pairs(rankedProbes) do
+        local harm = ns.LibRangeCheckQFXSpellData[class].harm
+        for i = 1, #ranked do
+            harm[#harm + 1] = ranked[i]
+        end
+    end
+end
 
 end)

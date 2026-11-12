@@ -6,7 +6,7 @@
 ## Notes-zhCN: QFX 插件管理中心的按需加载小工具模块包。
 ## Notes-zhTW: QFX 插件管理中心的按需載入小工具模組包。
 ## Author: Qunfeixuan
-## Version: 1.4.1
+## Version: 1.5.0
 ## LoadOnDemand: 1
 ## Dependencies: QFXAddonManager
 ## IconTexture: Interface\AddOns\QFXAddonManager\Media\addon-fei.blp

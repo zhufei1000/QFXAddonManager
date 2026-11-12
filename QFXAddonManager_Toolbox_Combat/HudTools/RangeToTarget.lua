@@ -22,13 +22,14 @@ local PROBE_EVENTS = {
     "ITEM_DATA_LOAD_RESULT",
 }
 local COMBAT_EVENTS = { "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED" }
+local FOCUS_EVENT = "PLAYER_FOCUS_CHANGED"
+local RANGE_FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 
 local enabled = false
 local frame
+local runtimeFrame
 local ticker
 local rebuildTimer
-local lastText
-local lastColorKey
 local StopTicker, RefreshTickerState
 
 local function IsSecret(value)
@@ -99,17 +100,58 @@ local function GetColorKey(minRange, maxRange, source)
     return "far"
 end
 
-local function SetFrameText(text, colorKey)
-    if not frame or not frame.text then return end
-    if text ~= lastText then
-        frame.text:SetText(text or "")
-        lastText = text
+local function SetReadout(region, text, colorKey)
+    if not text then
+        region:Hide()
+        return
     end
-    if colorKey ~= lastColorKey then
+    if text ~= region.rangeText then
+        region:SetText(text)
+        region.rangeText = text
+    end
+    if colorKey ~= region.rangeColorKey then
         local color = COLORS[colorKey] or COLORS.unknown
-        frame.text:SetTextColor(color[1], color[2], color[3], 1)
-        lastColorKey = colorKey
+        region:SetTextColor(color[1], color[2], color[3], 1)
+        region.rangeColorKey = colorKey
     end
+    region:Show()
+end
+
+local function CreateReadout()
+    local region = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    region:SetJustifyH("CENTER")
+    return region
+end
+
+local function LayoutReadouts()
+    local fontSize = frame.fontSize
+    local spacing = frame.stacked and (fontSize + 4) or 0
+    frame:SetSize(math.max(130, fontSize * (frame.focusVisible and 10 or 7)), fontSize + 16 + spacing)
+    frame.text:ClearAllPoints()
+    frame.text:SetPoint("CENTER", frame, "CENTER", 0, spacing / 2)
+    if frame.focusText then
+        frame.focusText:ClearAllPoints()
+        frame.focusText:SetPoint("CENTER", frame, "CENTER", 0, -spacing / 2)
+    end
+end
+
+local function SetReadouts(targetText, targetColor, focusText, focusColor)
+    SetReadout(frame.text, targetText, targetColor)
+    if focusText and not frame.focusText then
+        frame.focusText = CreateReadout()
+        frame.focusText:SetFont(RANGE_FONT, frame.fontSize, "OUTLINE")
+        frame.focusFormat = ns.L("Focus %s")
+    end
+    if frame.focusText then
+        SetReadout(frame.focusText, focusText and frame.focusFormat:format(focusText), focusColor)
+    end
+    local focusVisible = focusText ~= nil
+    local stacked = targetText ~= nil and focusVisible
+    if stacked ~= frame.stacked or focusVisible ~= frame.focusVisible then
+        frame.stacked, frame.focusVisible = stacked, focusVisible
+        LayoutReadouts()
+    end
+    frame:SetShown(targetText ~= nil or focusVisible)
 end
 
 local function SetBackdropVisible(visible)
@@ -134,7 +176,14 @@ end
 
 local function EnsureFrame()
     if frame then return end
-    frame = CreateFrame("Frame", "QFXToolBoxRangeToTargetFrame", UIParent, "BackdropTemplate")
+    -- The parent owns the ticker so hiding the readout alone leaves it running.
+    runtimeFrame = CreateFrame("Frame", nil, UIParent)
+    runtimeFrame:Hide()
+    runtimeFrame:SetScript("OnHide", function() StopTicker() end)
+    runtimeFrame:SetScript("OnShow", function() if enabled then RefreshTickerState() end end)
+
+    frame = CreateFrame("Frame", "QFXToolBoxRangeToTargetFrame", runtimeFrame, "BackdropTemplate")
+    frame:Hide()
     frame:SetSize(130, 34)
     frame:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -143,9 +192,7 @@ local function EnsureFrame()
     })
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
-    frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    frame.text:SetPoint("CENTER")
-    frame.text:SetJustifyH("CENTER")
+    frame.text = CreateReadout()
     frame:SetScript("OnDragStart", function(self)
         local db = ns.GetModuleDB(KEY)
         if not db.locked and not InCombatLockdown() then self:StartMoving() end
@@ -154,8 +201,6 @@ local function EnsureFrame()
         self:StopMovingOrSizing()
         SavePosition(self)
     end)
-    frame:SetScript("OnHide", function() StopTicker() end)
-    frame:SetScript("OnShow", function() if enabled then RefreshTickerState() end end)
 end
 
 StopTicker = function()
@@ -172,49 +217,39 @@ local function StopRebuildTimer()
     end
 end
 
-local function ConditionsAllowRuntime(db)
-    if UIParent and not UIParent:IsVisible() then return false end
-    if not enabled or SafeFlag(UnitExists, "target") ~= true then return false end
-    if db.combatOnly and not InCombatLockdown() then return false end
-    return true
+local function ReadRange(unit)
+    local minRange, maxRange, source = RangeLib:GetRangeInfo(unit)
+    local text = BuildRangeText(minRange, maxRange, source)
+    if text then return text, GetColorKey(minRange, maxRange, source) end
 end
 
 local function UpdateRange()
     if not frame then return end
     if UIParent and not UIParent:IsVisible() then StopTicker(); return end
     local db = ns.GetModuleDB(KEY)
-    if not ConditionsAllowRuntime(db) then
+    local active = enabled and (not db.combatOnly or InCombatLockdown())
+    local hasTarget = active and SafeFlag(UnitExists, "target") == true
+    local hasFocus = active and db.showFocus == true and SafeFlag(UnitExists, "focus") == true
+    if not hasTarget and not hasFocus then
         if not db.locked and enabled then
-            SetFrameText("10 - 15", "medium")
-            frame:Show()
+            SetReadouts("10 - 15", "medium")
         else
-            frame:Hide()
+            SetReadouts()
         end
         StopTicker()
         return
     end
 
-    local minRange, maxRange, source = RangeLib:GetRangeInfo("target")
-    local text = BuildRangeText(minRange, maxRange, source)
-    if not text then
-        frame:Hide()
-        return
-    end
-
-    SetFrameText(text, GetColorKey(minRange, maxRange, source))
-    frame:Show()
+    local targetText, targetColor, focusText, focusColor
+    if hasTarget then targetText, targetColor = ReadRange("target") end
+    if hasFocus then focusText, focusColor = ReadRange("focus") end
+    SetReadouts(targetText, targetColor, focusText, focusColor)
+    return true
 end
 
 RefreshTickerState = function()
-    local db = ns.GetModuleDB(KEY)
-    if ConditionsAllowRuntime(db) then
-        UpdateRange()
-        if not ticker and C_Timer and type(C_Timer.NewTicker) == "function" then
-            ticker = C_Timer.NewTicker(UPDATE_INTERVAL, UpdateRange)
-        end
-    else
-        StopTicker()
-        UpdateRange()
+    if UpdateRange() and not ticker and C_Timer and type(C_Timer.NewTicker) == "function" then
+        ticker = C_Timer.NewTicker(UPDATE_INTERVAL, UpdateRange)
     end
 end
 
@@ -234,9 +269,10 @@ end
 local function ApplyAppearance()
     if not frame then return end
     local db = ns.GetModuleDB(KEY)
-    local fontSize = ClampInteger(db.fontSize, 10, 40, 18)
-    frame.text:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", fontSize, "OUTLINE")
-    frame:SetSize(math.max(130, fontSize * 7), fontSize + 16)
+    frame.fontSize = ClampInteger(db.fontSize, 10, 40, 18)
+    frame.text:SetFont(RANGE_FONT, frame.fontSize, "OUTLINE")
+    if frame.focusText then frame.focusText:SetFont(RANGE_FONT, frame.fontSize, "OUTLINE") end
+    LayoutReadouts()
     frame:EnableMouse(not db.locked)
     if db.locked then
         frame:RegisterForDrag()
@@ -289,12 +325,14 @@ local function RegisterEvents(db)
     ns.RegisterModuleEvents(KEY, BASE_EVENTS, OnEvent)
     ns.RegisterModuleEvents(KEY, PROBE_EVENTS, OnEvent)
     if db.combatOnly then ns.RegisterModuleEvents(KEY, COMBAT_EVENTS, OnEvent) end
+    if db.showFocus == true then ns.RegisterModuleEvents(KEY, FOCUS_EVENT, OnEvent) end
 end
 
 local function UnregisterEvents()
     ns.UnregisterModuleEvents(KEY, BASE_EVENTS)
     ns.UnregisterModuleEvents(KEY, PROBE_EVENTS)
     ns.UnregisterModuleEvents(KEY, COMBAT_EVENTS)
+    ns.UnregisterModuleEvents(KEY, FOCUS_EVENT)
 end
 
 local function ResetPosition(db)
@@ -312,13 +350,12 @@ ns.RegisterModule(KEY, {
     descKey = "Displays exact target distance when available and safely falls back to estimated ranges.",
     OnEnable = function(_, db)
         enabled = true
-        lastText, lastColorKey = nil, nil
         RangeLib:Rebuild()
         EnsureFrame()
         ApplyPosition()
         ApplyAppearance()
         RegisterEvents(db)
-        RefreshTickerState()
+        runtimeFrame:Show()
     end,
     OnDisable = function()
         enabled = false
@@ -326,8 +363,8 @@ ns.RegisterModule(KEY, {
         StopRebuildTimer()
         UnregisterEvents()
         RangeLib:Clear()
-        lastText, lastColorKey = nil, nil
         if frame then frame:Hide() end
+        if runtimeFrame then runtimeFrame:Hide() end
     end,
     ApplySettings = function(_, db)
         if not enabled then return end
@@ -361,6 +398,11 @@ ns.RegisterModule(KEY, {
                         label = ui.L("Combat Only"),
                         getValue = function() return db.combatOnly end,
                         setValue = function(v) SetOption(db, "combatOnly", v and true or false) end,
+                    },
+                    {
+                        label = ui.L("Focus Distance"),
+                        getValue = function() return db.showFocus == true end,
+                        setValue = function(v) SetOption(db, "showFocus", v == true) end,
                     },
                 })
                 s:ValueSlider(

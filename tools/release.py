@@ -78,6 +78,7 @@ def check():
     for locale in ("enUS", "zhCN", "zhTW"):
         for test in ("validate_addon_title_language", "validate_class_card_picker"):
             subprocess.run([lua, "tools/" + test + ".lua", locale], check=True, cwd=ROOT)
+        subprocess.run([lua, "tests/test_target_distance.lua", locale], check=True, cwd=ROOT)
     for test in ("validate_forever_compat", "validate_forever_toolbox"):
         subprocess.run([lua, "tools/" + test + ".lua"], check=True, cwd=ROOT)
     for test in ("test_ranked_options", "test_addon_options_commands", "test_manager_refresh", "test_minimap_buttons"):

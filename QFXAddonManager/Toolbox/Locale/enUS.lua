@@ -8,6 +8,8 @@ local locale = ns.GetResolvedLocale and ns.GetResolvedLocale() or (GetLocale and
 if locale == "zhCN" or locale == "zhTW" then return end
 
 ns.RegisterLocale("enUS", {
+        ["Focus Distance"] = "Focus Distance",
+        ["Focus %s"] = "Focus %s",
         ["Auto Quest"] = "Auto Quest",
         ["Automatically accept and turn in quests, with separate Shift controls and quest filters."] = "Automatically accept and turn in quests, with separate Shift controls and quest filters.",
         ["Auto Accept Quests"] = "Auto Accept Quests",
