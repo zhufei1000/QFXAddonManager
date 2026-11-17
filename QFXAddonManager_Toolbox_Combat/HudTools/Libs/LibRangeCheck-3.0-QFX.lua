@@ -2,15 +2,17 @@ local _, manager = ...
 manager.ToolboxRuntime:AddFile("HudTools", function(...)
 --[[
 Name: LibRangeCheck-3.0-QFX
-Copyright (c) 2023 The WoWUIDev Community
+Original project: LibRangeCheck-3.0
+Original authors: mitch0, WoWUIDev Community
 License: MIT
 
-QFX Retail and Forever implementation:
+QFX Retail 12.x implementation:
 - Rebuilds checkers from the player's active spellbook, not from broad
   "known or in spellbook" guesses. This preserves replacement spells and
   rejects off-spec entries.
-- Selects probes by target relation and combat restrictions.
-- Uses active spell probes on both clients and item probes on Retail.
+- Uses the reference library's friend/harm/res/pet/misc routing and separate
+  combat-safe lists.
+- Uses Retail spell and item probes for rich intervals.
 - Never calls CheckInteractDistance or UnitPosition.
 - Item probes are excluded for restricted friendly/non-attackable units in
   combat. All secret or inaccessible results are treated as unknown.
@@ -20,7 +22,6 @@ QFX Retail and Forever implementation:
 local addonName = ...
 local ns = _G.QFXAddonManagerToolboxNS
 if not ns then return end
-local isForever = ns.Compat and ns.Compat.IsForever and ns.Compat.IsForever()
 
 local MAJOR = "LibRangeCheck-3.0-QFX"
 local MINOR = 2
@@ -292,12 +293,12 @@ local function AddChecker(groupMap, range, checker, prefer)
     end
 end
 
-local function GroupMapToAscendingList(groupMap)
+local function GroupMapToDescendingList(groupMap)
     local result = {}
     for _, group in pairs(groupMap) do
         if #group.checkers > 0 then result[#result + 1] = group end
     end
-    sort(result, function(a, b) return a.range < b.range end)
+    sort(result, function(a, b) return a.range > b.range end)
     return result
 end
 
@@ -383,33 +384,39 @@ local function AddItemCandidates(self, groupMap, itemData, relation)
     end
 end
 
-local function BuildCheckerLists(self, spellCandidates, itemData, relation)
+local function BuildCheckerLists(self, spellCandidates, itemData, relation, includeItems)
     local normalMap, combatMap = {}, {}
 
-    AddItemCandidates(self, normalMap, itemData, relation)
+    if includeItems then AddItemCandidates(self, normalMap, itemData, relation) end
     AddSpellCandidates(normalMap, spellCandidates, relation)
     AddSpellCandidates(combatMap, spellCandidates, relation)
 
-    return GroupMapToAscendingList(normalMap), GroupMapToAscendingList(combatMap)
+    return GroupMapToDescendingList(normalMap), GroupMapToDescendingList(combatMap)
 end
 
 local function GetRangeWithCheckerList(unit, checkerList)
-    if not checkerList then return nil end
+    if type(checkerList) ~= "table" or #checkerList == 0 then return nil end
 
-    -- Walk outward from the shortest distance. The first confirmed hit is
-    -- the upper bound, and the last confirmed miss is the lower bound.
-    local minRange
-    for i = 1, #checkerList do
-        local group = checkerList[i]
-        local result = EvaluateGroup(group, unit)
+    -- Same descending binary-search model used by LibRangeCheck derivatives.
+    -- A checker is monotonic: true inside its range, false outside it.
+    local lo, hi = 1, #checkerList
+    while lo <= hi do
+        local mid = floor((lo + hi) / 2)
+        local result = EvaluateGroup(checkerList[mid], unit)
         if result == true then
-            return minRange or 0, group.range
-        elseif result == false then
-            minRange = group.range
+            lo = mid + 1
+        else
+            hi = mid - 1
         end
     end
 
-    return minRange
+    if lo > #checkerList then
+        return 0, checkerList[#checkerList].range
+    elseif lo <= 1 then
+        return checkerList[1].range, nil
+    else
+        return checkerList[lo].range, checkerList[lo - 1].range
+    end
 end
 
 local function TryExactDistance(unit)
@@ -457,7 +464,7 @@ end
 
 local function SelectCheckerList(self, relation)
     if relation == "harm" then
-        -- Hostile item probes are available in combat.
+        -- The reference routing keeps hostile item probes available in combat.
         return self.checkerSets.harm
     end
     if IsRestrictedUnit(relation) then
@@ -476,11 +483,9 @@ end
 
 function lib:Rebuild()
     local spellData = ns.LibRangeCheckQFXSpellData
-    local itemData
-    if not isForever then
-        itemData = type(ns.GetLibRangeCheckQFXItemData) == "function"
-            and ns.GetLibRangeCheckQFXItemData() or ns.LibRangeCheckQFXItemData
-    end
+    -- The item probe database is packed on disk and only expands on demand.
+    local itemData = type(ns.GetLibRangeCheckQFXItemData) == "function"
+        and ns.GetLibRangeCheckQFXItemData() or ns.LibRangeCheckQFXItemData
     local _, classToken = UnitClass("player")
     if not IsAccessible(classToken) or type(classToken) ~= "string" then
         self:Clear()
@@ -498,16 +503,18 @@ function lib:Rebuild()
         self,
         friendCandidates,
         itemData and itemData.friend,
-        "friend"
+        "friend",
+        true
     )
     local harm, harmInCombat = BuildCheckerLists(
         self,
         classData and classData.harm,
         itemData and itemData.harm,
-        "harm"
+        "harm",
+        true
     )
-    local res, resInCombat = BuildCheckerLists(self, classData and classData.res, nil, "res")
-    local pet, petInCombat = BuildCheckerLists(self, classData and classData.pet, nil, "pet")
+    local res, resInCombat = BuildCheckerLists(self, classData and classData.res, nil, "res", false)
+    local pet, petInCombat = BuildCheckerLists(self, classData and classData.pet, nil, "pet", false)
 
     self.checkerSets = {
         friend = friend,

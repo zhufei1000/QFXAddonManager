@@ -2,18 +2,18 @@
 
 ## English
 
-- Added an optional Focus Distance readout to Range to Target for Retail and WoW: Forever. It is off by default. With no focus or with the option off, the focus line stays hidden and silent.
-- Range estimates now use confirmed probe results. A temporarily unavailable readout reappears automatically when the same unit can be measured again.
-- Added higher-rank spell probes for the nine classes in WoW: Forever.
+- Range to Target keeps the 1.4.1 monitoring path: exact distance when available, otherwise a confirmed target range from the active spell and item probes. The focus distance row has been removed.
+- Probe checks use the existing bounded binary search, so each refresh makes fewer client range calls.
+- Retail item probes remain available; no focus or extra range path is registered at login.
 
 ## 简体中文
 
-- 正式服和无限服的「目标距离」新增「焦点距离」，默认关闭。没有焦点或关闭开关时，焦点行静默隐藏。
-- 距离区间只使用已确认的测距结果。目标或焦点暂时不可测时，恢复可测后自动重新显示。
-- 无限服补充了九职业的高等级技能测距。
+- 「目标距离」恢复 1.4.1 的监控逻辑：优先显示精确距离，否则使用当前法术书技能和物品探针探测目标区间；移除「焦点距离」行。
+- 测距恢复原有的二分探测，单次刷新调用更少的客户端测距接口。
+- 正式服保留物品测距探针；登录时不再注册焦点或额外测距路径。
 
 ## 繁體中文
 
-- 正式服與無限服的「目標距離」新增「焦點距離」，預設關閉。沒有焦點或關閉開關時，焦點行靜默隱藏。
-- 距離區間只使用已確認的測距結果。目標或焦點暫時無法測距時，恢復可測後自動重新顯示。
-- 無限服補充了九職業的高等級技能測距。
+- 「目標距離」恢復 1.4.1 的監控邏輯：優先顯示精確距離，否則使用目前法術書技能和物品探針探測目標區間；移除「焦點距離」列。
+- 測距恢復原有的二分探測，單次重新整理呼叫較少的客戶端測距介面。
+- 正式服保留物品測距探針；登入時不再註冊焦點或額外測距路徑。

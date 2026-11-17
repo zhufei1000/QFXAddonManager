@@ -474,7 +474,6 @@ ns.ModuleDefaults = {
     range_to_target = {
         enabled = false,
         locked = true,
-        showFocus = false,
         point = "CENTER",
         relativePoint = "CENTER",
         x = 0,
