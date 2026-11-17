@@ -13,6 +13,7 @@
 
 - 选中插件不会把插件设置放进右栏。`UI.GetEmbeddedSettingsKey` 恒为 `nil`。
 - 缩放下拉左侧的“点击卡片打开设置”默认开启，保存在 `QFXAddonManagerDB.ui.openOptionsOnCardClick`。关闭后，点卡片仅选中，插件和内置工具从右栏“打开设置”进入各自的设置。
+- “小地图按钮管理”从开关设置移到顶部“点击卡片打开设置”右侧；缩放与语言下拉顺移，保留原间距及顶部对齐。开关继续使用 `ui.collectMinimapButtons`，默认关闭，沿用启用确认、收拢插件冲突检查及战斗限制。
 - 卡片或右栏按钮打开暴雪设置面板时，主窗口自动收为折叠条。关闭暴雪设置后折叠条仍保留，展开时回到当前插件列表和选中项。原生独立窗口、专属页和内置工具沿用各自的打开方式。
 - 未适配插件右栏可保存一条打开配置的斜杠命令，例如 `/myaddon config`。命令按真实主目录保存在 `QFXAddonManagerDB.addonOptionsCommands`，清空即删除。右栏按钮和卡片自动打开共用既有的战斗、职业、按需载入和重入保护。仅调用已注册的插件命令，已适配项目优先使用原生入口。
 - 正式服和无限服的卡片、右栏“打开设置”按钮与公开 API 都通过 `OpenRegisteredOptions` 调用插件注册的 `openOptions`。两个例外在该回调中打开独立窗口 `QFXAddonManagerAddonSettingsFrame`。

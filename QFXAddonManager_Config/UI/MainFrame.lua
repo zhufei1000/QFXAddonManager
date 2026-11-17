@@ -142,13 +142,34 @@ local function CreateScaleDropdown(f, W)
     }, L.WINDOW_LANGUAGE, L.LANGUAGE_TIP, f.scaleHost)
 end
 
-local function CreateCardOptionsToggle(f, W)
+local function CreateHeaderToggle(f, W, width, cfg)
     local host = CreateFrame("Frame", nil, f.body)
-    host:SetSize(186, f.scaleHost:GetHeight())
-    host:SetPoint("RIGHT", f.scaleHost, "LEFT", -8, 0)
+    host:SetSize(width, f.scaleHost:GetHeight())
+    cfg.type = "toggle"
     W:BeginPage(host)
-    local row = W:DualRow(host, 0, {
-        type = "toggle", text = L.CARD_OPTIONS_ON_CLICK, tooltip = L.CARD_OPTIONS_ON_CLICK_TIP,
+    local row = W:DualRow(host, 0, cfg)
+    W:EndPage()
+    local region, toggle = row._leftRegion, row._leftRegion._control
+    region:SetParent(host)
+    region:ClearAllPoints()
+    region:SetAllPoints(host)
+    local label = region._label
+    label:ClearAllPoints()
+    label:SetWidth(0)
+    label:SetText(cfg.text)
+    local labelWidth = math.ceil(label:GetStringWidth())
+    label:SetWidth(labelWidth)
+    label:SetPoint("LEFT", host, "LEFT", W.Theme.sidePad, 0)
+    toggle:ClearAllPoints()
+    toggle:SetPoint("LEFT", label, "RIGHT", 6, 0)
+    host:SetWidth(W.Theme.sidePad + labelWidth + 6 + toggle:GetWidth())
+    row:Hide()
+    return host, toggle
+end
+
+local function CreateHeaderToggles(f, W)
+    f.cardOptionsHost, f.cardOptionsToggle = CreateHeaderToggle(f, W, 186, {
+        text = L.CARD_OPTIONS_ON_CLICK, tooltip = L.CARD_OPTIONS_ON_CLICK_TIP,
         getValue = QFXAM.GetOpenOptionsOnCardClick,
         setValue = function(on)
             QFXAM.db.ui.openOptionsOnCardClick = on
@@ -160,17 +181,15 @@ local function CreateCardOptionsToggle(f, W)
             UI.RefreshDetail()
         end,
     })
-    W:EndPage()
-    local region, toggle = row._leftRegion, row._leftRegion._control
-    region:SetParent(host)
-    region:ClearAllPoints()
-    region:SetAllPoints(host)
-    toggle:ClearAllPoints()
-    toggle:SetPoint("RIGHT", host, "RIGHT", 0, 0)
-    W.TruncateToFit(region._label, L.CARD_OPTIONS_ON_CLICK,
-        host:GetWidth() - toggle:GetWidth() - W.Theme.sidePad - W.Theme.labelGap)
-    row:Hide()
-    f.cardOptionsHost, f.cardOptionsToggle = host, toggle
+    f.cardOptionsHost:SetPoint("TOPLEFT", f.body, "TOP", -f.scaleHost:GetWidth() / 2 - 8 - 186, -8)
+    f.minimapButtonsHost, f.minimapButtonsToggle = CreateHeaderToggle(f, W, 202, {
+        text = L.MINIMAP_BUTTONS_TITLE, tooltip = L.MINIMAP_BUTTONS_DESC,
+        getValue = UI.GetMinimapButtonsEnabled, setValue = UI.SetMinimapButtonsEnabled,
+        blockInCombat = true, combatTooltip = L.COMBAT_LOCKED_TIP,
+    })
+    f.minimapButtonsHost:SetPoint("LEFT", f.cardOptionsHost, "RIGHT", 8, 0)
+    f.scaleHost:ClearAllPoints()
+    f.scaleHost:SetPoint("LEFT", f.minimapButtonsHost, "RIGHT", 8, 0)
 end
 
 local function CreateCollapsedBar(f, W)
@@ -323,7 +342,7 @@ function UI.CreateMainFrame()
     f:SetSize(1116, 680)
     f:SetScale(UI.GetMainScale())
     f:SetPoint("CENTER")
-    f:SetFrameStrata("HIGH")
+    f:SetFrameStrata("MEDIUM")
     f:SetMovable(true)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
@@ -368,7 +387,7 @@ function UI.CreateMainFrame()
     f.subtitle = sub
 
     CreateScaleDropdown(f, W)
-    CreateCardOptionsToggle(f, W)
+    CreateHeaderToggles(f, W)
     f.close = W:CloseButton(body, { tooltip = L.CLOSE, onClick = function() f:Hide() end })
     f.collapse = W:CollapseButton(body, { insetX = -40, tooltip = L.COLLAPSE_WINDOW,
         onClick = function() UI.SetMainCollapsed(true) end })
@@ -475,6 +494,7 @@ end
 
 
 function UI.Refresh(displayReady)
+    if UI.frame and UI.frame.minimapButtonsHost then UI.GetWidgets():Refresh(UI.frame.minimapButtonsHost) end
     -- Scanning or refreshing enablement already built the display model.
     if displayReady ~= true then QFXAM.BuildDisplayList() end
     if not QFXAM.GetSelectedItem() then QFXAM.SelectItem(nil) end

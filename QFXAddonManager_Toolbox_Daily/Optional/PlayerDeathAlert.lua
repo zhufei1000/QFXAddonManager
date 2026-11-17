@@ -23,7 +23,7 @@ local KEY = "player_death_alert"
 local Audio = ns.OptionalAudio or {}
 
 local DEFAULT_VOICE_SHARED = "builtin:raid_warning"
-local DEFAULT_IMAGE_SHARED = "builtin:skull"
+local DEFAULT_IMAGE_SHARED = "QFX Personal Tag Red Gold"
 local DEFAULT_IMAGE_SIZE = 256
 local DEFAULT_IMAGE_ALPHA = 0.9
 local DEFAULT_IMAGE_STRATA = "BACKGROUND"

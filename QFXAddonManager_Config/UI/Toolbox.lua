@@ -478,6 +478,7 @@ function UI.RefreshForCombat()
     else
         UI.GetWidgets():Refresh(frame.scaleHost)
         UI.GetWidgets():Refresh(frame.languageHost)
+        UI.GetWidgets():Refresh(frame.minimapButtonsHost)
         UI.RefreshList()
         UI.RefreshDetail()
     end

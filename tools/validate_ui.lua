@@ -207,6 +207,7 @@ load("Core/API.lua"); load("Core/DB.lua"); load("Core/Widgets.lua"); load("Core/
 load("Core/AddonModes.lua"); load("Core/ModeMaps.lua")
 load("Core/AddonClasses.lua")
 loadConfig("UI/AddonClasses.lua")
+loadConfig("UI/MinimapButtons.lua")
 loadConfig("UI/Controls.lua"); loadConfig("UI/SearchBox.lua"); loadConfig("UI/CategoryList.lua"); loadConfig("UI/AddonList.lua"); loadConfig("UI/DetailPanel.lua"); loadConfig("UI/ReloadPrompt.lua"); loadConfig("UI/AddonModes.lua"); loadConfig("UI/ModeMaps.lua"); loadConfig("UI/MainFrame.lua")
 AM.InitDB(); AM.db.ui.lastCategory = "all"; AM.State.category = "all"; AM.Widgets.ApplyBrand()
 AM.Print = function(text) AM.lastPrint = text end
@@ -1115,15 +1116,25 @@ W:SetMotionEnabled(false)
 UI.Show()
 local scaleFrame, scaleDropdown = UI.frame, UI.frame.scaleDropdown
 local cardTogglePoint, cardToggleAnchor, cardToggleRelative, cardToggleX, cardToggleY = scaleFrame.cardOptionsHost:GetPoint(1)
-assert(cardTogglePoint == "RIGHT" and cardToggleAnchor == scaleFrame.scaleHost
-    and cardToggleRelative == "LEFT" and cardToggleX < 0 and cardToggleY == 0
-    and scaleFrame.cardOptionsToggle:IsVisible(), "The card preference switch sits directly left of the scale selector")
+assert(cardTogglePoint == "TOPLEFT" and cardToggleAnchor == scaleFrame.body
+    and cardToggleRelative == "TOP" and cardToggleX == -234 and cardToggleY == -8
+    and scaleFrame.cardOptionsToggle:IsVisible(), "The card preference switch retains its original header position")
+for _, toggle in ipairs({scaleFrame.cardOptionsToggle, scaleFrame.minimapButtonsToggle}) do
+    local label, point = toggle:GetParent()._label, {toggle:GetPoint(1)}
+    assert(point[1] == "LEFT" and point[2] == label and point[3] == "RIGHT" and point[4] == 6,
+        "Both header switches must sit six pixels after their actual label text")
+end
+local minimapPoint = {scaleFrame.minimapButtonsHost:GetPoint(1)}
+local scaleHostPoint = {scaleFrame.scaleHost:GetPoint(1)}
+assert(minimapPoint[1] == "LEFT" and minimapPoint[2] == scaleFrame.cardOptionsHost
+    and minimapPoint[3] == "RIGHT" and minimapPoint[4] == 8
+    and scaleFrame.minimapButtonsToggle:IsVisible(), "Minimap management sits immediately right of the card preference")
 assert(scaleFrame:GetScale() == 1 and scaleDropdown._label:GetText() == "100%")
-assert(({scaleFrame.scaleHost:GetPoint(1)})[1] == "TOP"
-    and ({scaleFrame.scaleHost:GetPoint(1)})[4] == 0
-    and ({scaleFrame.scaleHost:GetPoint(1)})[5] == ({scaleFrame.close:GetPoint(1)})[5]
+assert(scaleHostPoint[1] == "LEFT" and scaleHostPoint[2] == scaleFrame.minimapButtonsHost
+    and scaleHostPoint[3] == "RIGHT" and scaleHostPoint[4] == 8
+    and cardToggleY == ({scaleFrame.close:GetPoint(1)})[5]
     and ({scaleDropdown:GetPoint(1)})[1] == "TOP" and ({scaleDropdown:GetPoint(1)})[5] == 0
-    and not scaleDropdown:GetParent()._label:IsShown(), "Percentage-only scale selector is centered with the same top inset as the close button")
+    and not scaleDropdown:GetParent()._label:IsShown(), "Scale selector shifts right of minimap management with the same top inset as the close button")
 local scaleSelection, scaleCategory, scaleSearch = AM.State.selectedKey, AM.State.category, AM.State.search
 scaleDropdown:Click()
 assert(scaleDropdown._menu:IsShown() and #scaleDropdown._menu._rows == 9)

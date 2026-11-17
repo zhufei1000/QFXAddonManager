@@ -2,7 +2,7 @@ dofile("tools/validate_ui.lua")
 local AM, fixture = QFXAddonManager, QFXTestFixture
 QFXWidgets:SetMotionEnabled(false)
 AM.UI.Hide()
-AM.UI.Refresh = function() end
+AM.UI.Refresh = function() QFXWidgets:Refresh(AM.UI.frame.minimapButtonsHost) end
 assert(loadfile("QFXAddonManager/Core/Toolbox.lua"))(AM.name, AM)
 Minimap = CreateFrame("Frame", nil, UIParent)
 local conflict
@@ -41,8 +41,9 @@ local library = {
 }
 LibStub = function(name) if name == "LibDBIcon-1.0" then return library end end
 
-assert(loadfile("QFXAddonManager_Config/UI/MinimapButtons.lua"))("QFXAddonManager_Config", {})
-local switch = AM.Toolbox.SummarySwitches.minimapButtons
+AM.UI.frame:Show()
+local switch = { get = AM.UI.GetMinimapButtonsEnabled, set = AM.UI.SetMinimapButtonsEnabled }
+assert(not AM.Toolbox.SummarySwitches.minimapButtons, "The header switch must replace the old summary entry")
 local function ConfirmFrame()
     for i = #fixture.frames, 1, -1 do
         local frame = fixture.frames[i]
@@ -50,8 +51,18 @@ local function ConfirmFrame()
     end
 end
 assert(not switch.get() and AM.db.ui.collectMinimapButtons == false)
-switch.set(true)
+local headerToggle = AM.UI.frame.minimapButtonsToggle
+fixture.setCombat(true)
+QFXWidgets:Refresh(AM.UI.frame.minimapButtonsHost)
+headerToggle:Click()
+assert(not switch.get() and headerToggle:GetAlpha() == 0.35 and not ConfirmFrame(),
+    "The header toggle must be blocked in combat")
+fixture.setCombat(false)
+QFXWidgets:Refresh(AM.UI.frame.minimapButtonsHost)
+headerToggle:Click()
 assert(not switch.get() and adapted:IsVisible() and not iconCreated, "Wait for explicit confirmation")
+table.remove(fixture.deferred)()
+assert(not headerToggle._state, "The header toggle must return to off while confirmation is pending")
 assert(ConfirmFrame())._cancel:Click()
 assert(not switch.get() and adapted:IsVisible())
 
@@ -60,14 +71,15 @@ switch.set(true)
 assert(ConfirmFrame())._accept:Click()
 assert(not switch.get() and adapted:IsVisible(), "A known collector blocks activation")
 conflict = nil
-switch.set(true)
+headerToggle:Click()
 assert(ConfirmFrame())._accept:Click()
-assert(switch.get() and not adapted:IsVisible() and adapted:IsShown() and iconCreated,
+assert(switch.get() and headerToggle._state and not adapted:IsVisible() and adapted:IsShown() and iconCreated,
     "Only inherited visibility changes")
 assert(unadapted:IsVisible() and noSettings:IsVisible() and manager:IsVisible()
     and protected:IsVisible() and ownedElsewhere:GetParent() == foreignParent)
 local late = AddIcon("Late", Minimap, true)
 AM.Cache.addons.Late.loaded = false
+AM.UI.Hide()
 AM.ScanAddOns = function() error("The hidden collector must not scan the addon list") end
 fixture.setCombat(true)
 iconCreated()

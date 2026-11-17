@@ -25,7 +25,7 @@ for line in io.lines(root .. "QFXAddonManager_Config/QFXAddonManager_Config.toc"
 end
 assert(#retailOnly > 0, "Missing Retail-only TOC entries")
 for _, name in ipairs(retailOnly) do installed[name] = {} end
-for _, name in ipairs({"QFXBeggar", "QfxUI_Installer", "QFXSystemBar", "Lueur"}) do installed[name] = {} end
+for _, name in ipairs({"QFXBeggar", "QfxUI_Installer", "QFXSystemBar", "QFXSkillAlerts", "Lueur"}) do installed[name] = {} end
 installed.DungeonsForever, installed.DF_CNLocale = {}, {}
 local handbookModules = {"Class", "Explore", "Faction", "Gear", "Prof", "PvP", "Spell"}
 for _, suffix in ipairs(handbookModules) do
@@ -85,6 +85,21 @@ end
 local retail, retailQueries = session("standard", installed)
 local forever, foreverQueries, loads = session("camelot", installed)
 local absent = session("camelot", {})
+assert(retail.SkillAlertsPresetData and retail.Presets.CanApply("QFXSkillAlerts"))
+assert(forever.SkillAlertsPresetData == nil, "Forever must skip the Retail preset data")
+assert(not forever.Presets.GetStatus("QFXSkillAlerts").hasContent, "Forever must hide Restore Defaults")
+assert(not forever.Presets.CanApply("QFXSkillAlerts"))
+local profile = {specConfigs = {}}
+QFXSkillAlertsDB = profile
+assert(select(2, forever.Presets.Apply("QFXSkillAlerts")) == "empty")
+assert(select(2, forever.Presets.Restore("QFXSkillAlerts")) == "empty")
+assert(forever.db.presets.QFXSkillAlerts == nil and QFXSkillAlertsDB == profile and next(profile.specConfigs) == nil)
+QFXSkillAlertsNS = {
+    LoadConfigAddon = function() return true end,
+    UI = {MainFrame = {Open = function() return true end}},
+}
+assert(forever.Registry.GetOpenOptions("QFXSkillAlerts")(), "Forever must still open native settings")
+QFXSkillAlertsNS, QFXSkillAlertsDB = nil, nil
 for _, name in ipairs(retailOnly) do
     assert(retail.Registry.GetOpenOptions(name), "Missing Retail opener " .. name)
     assert(not foreverQueries[name] and not forever.Registry.Get(name), "Retail adapter leaked into Forever: " .. name)

@@ -110,7 +110,5 @@ local function SetEnabled(on)
     })
 end
 
-AM.Toolbox.RegisterSummarySwitch("minimapButtons", {
-    title = L.MINIMAP_BUTTONS_TITLE, description = L.MINIMAP_BUTTONS_DESC,
-    get = Enabled, set = SetEnabled,
-})
+UI.GetMinimapButtonsEnabled = Enabled
+UI.SetMinimapButtonsEnabled = SetEnabled
