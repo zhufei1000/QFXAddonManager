@@ -7,7 +7,10 @@ import struct
 from collections import Counter
 from pathlib import Path
 
-from PIL import Image, ImageFont
+try:
+    from PIL import Image, ImageFont
+except ImportError:  # The release workflow imports tests without Pillow.
+    Image = ImageFont = None
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENTS = [Path("D:/World of Warcraft") / name for name in ("_forever_", "_retail_")]
@@ -62,6 +65,9 @@ def verify_image(path):
 
 
 def main():
+    if Image is None:
+        print("SKIP: Pillow (PIL) is required for texture resource audit")
+        return 0
     images, failures, mismatches, native, missing = [], [], [], [], []
     packages = [p for p in ROOT.glob("QFXAddonManager*") if p.is_dir()] + [ROOT / "QFX_SharedMedia"]
     for package in packages:
