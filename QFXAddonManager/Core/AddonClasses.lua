@@ -10,7 +10,7 @@ local classOrder = (AM.IsForever and AM.IsForever()) and FOREVER_CLASS_ORDER or 
 local classes = {}
 for _, token in ipairs(classOrder) do
     classes[#classes + 1] = { key = token, label = L["CLASS_" .. token],
-        atlas = "classicon-" .. token:lower(), texture = "Interface\\Icons\\INV_Misc_QuestionMark" }
+        atlas = "classicon-" .. token:lower(), texture = [[Interface\AddOns\QFXAddonManager\Media\addon-question-mark.blp]] }
 end
 AM.AddonClasses = classes
 local known, playerClass = {}, nil

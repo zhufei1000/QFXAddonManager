@@ -159,6 +159,16 @@ local function BuildAddOnMeta(name, title, notes, gen)
     if fallback and icon and not iconAtlas then icon = fallback[icon] or icon end
     local iconCoords
     if not icon and not iconAtlas then icon, iconAtlas, iconCoords = Registry.GetIcon(name) end
+    -- Forever 70938 crash reports stop in the async reader for FileDataID
+    -- 133785 (coin) and 134400 (question mark). Avoid both for cards.
+    if icon and not iconAtlas and QFXAM.IsForever and QFXAM.IsForever() then
+        local path = type(icon) == "string" and Lower(icon):gsub("\\", "/"):gsub("%.blp$", "")
+        if tonumber(icon) == 133785 or tonumber(icon) == 134400
+            or path == "interface/icons/inv_misc_coin_02" or path == "interface/icons/inv_misc_questionmark" then
+            icon = [[Interface\AddOns\QFXAddonManager\Media\addon-question-mark.blp]]
+            iconCoords = nil
+        end
+    end
     local titleZH, titleEN = ResolveDisplayTitles(name, title)
     local displayTitle = title or Registry.GetTitle(name) or name
     return {

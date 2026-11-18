@@ -72,3 +72,74 @@
 - `python tools/build_addon.py` 校验 TOC／打包清单；`python tools/audit_localization.py` 校验词典。
 
 适配本身不递增插件版本；正式发布时再按发布流程递增。
+
+## 未适配列表闪退排查
+
+Forever 1.60.1.70938 的 `2026-11-18_21.09.34_Crash_31668.txt` 与
+`2026-11-18_21.14.33_Crash_30936.txt` 均记录 ERROR #132 / ACCESS_VIOLATION，
+相同异常地址 `0x00007ff6d708bb2d`，LuaErrors 为 0，异常线程信息均为
+`Async Reading: FileData ID 133785`。日志位于客户端 `Errors/`，不随源码分发。
+
+[wowdev 资源清单](https://github.com/wowdev/wow-listfile/releases/tag/202611141741)
+将 133785 对应到 `interface/icons/inv_misc_coin_02.blp`；当前安装的
+AuctionSniperPlus 的 TOC IconTexture 正好引用该资源。进入未适配分类会显示其卡片，
+Scanner 读取原始 TOC 图标并交给工厂 SetTexture，是目前证据最明确的触发路径。
+日志不能单独证明资源损坏或解码器缺陷，最终因果需游戏内复测确认。
+
+Scanner 在 Forever 且无优先 atlas 时，将该精确资源（大小写、路径分隔符、
+可选 `.blp` 后缀及数字／字符串 ID）替换为随包问号图。其他资源及客户端保持原优先级。
+不修改 AuctionSniperPlus、启停状态、存档、TOC 或版本。
+
+验证：`lua tests/test_forever_icon.lua enUS`（另跑 zhCN／zhTW）、
+`lua tools/validate_ui.lua`、`lua tools/validate_forever_compat.lua`。
+新增测试验证真实 Scanner 输出到未适配卡片的数据，不模拟原生解码器。
+游戏内重新登录后进入“未适配插件”，点击 AuctionSniperPlus 并往返切换分类，确认不再闪退。
+
+扩展审查发现 `2026-11-10_17.05.08_Crash_6224.txt`（1.60.1.70862）也为
+ACCESS_VIOLATION、LuaErrors 0，异常线程读取的是 134400（原生问号图标）。
+因此同一 Scanner 防护也覆盖 134400 的 ID／路径写法。职业元数据、安装器空图标、
+工厂职业图标兜底、CheckGrid atlas 占位和缺失技能图标兜底改用随包或宿主默认图。
+CheckGrid 过去会先 SetTexture 原生问号再 SetAtlas；新测试检查每次 SetTexture 调用，
+防止只检查最终图集而漏掉中间的异步资源请求。能力补丁通过
+`CHECKGRID_SAFE_FALLBACK_REVISION=1` 接入已有工厂单例，VERSION 与插件版本保持不变。
+
+`python tests/test_texture_resources.py` 检查到本体／子包／共享媒体共 81 张图片，
+逐级验证 BLP2 长度、偏移、mip 数据并解码，检查其他图片／字体及已安装第三方 TOC 的本地图标。
+未发现结构或解码错误，两个客户端的本体图片副本均与源码一致。
+7 条缺失 TOC 引用全部来自正式服 163UI_Info 的不同分支 TOC，指向旧 163UI 素材目录，
+现有 `TOCIconFallbacks` 已精确替换这条路径。完整清单在本地
+`tools/texture-safety-audit.json`，不随运行包分发。
+
+审查不等于原生渲染器验证：CASC 内资源未提取解码，未证明上述原生图标本身损坏。
+Forever 其余 TOC 原生图片为 BlizzMove 的移动光标和 QFXTip 的指针，目前没有对应崩溃记录。
+独立插件仍有自己的原生问号引用，例如 AuctionSniperPlus、QFXSkillAlerts、QFXUnitframes、
+PetStatusAlert、RXPGuides、DungeonsForever 系列和 BagBrother；这些文本命中包含配置、注释与兜底，
+不能据此认定它们引发过崩溃，本次未修改独立插件。
+
+补充回归：`lua tests/test_factory_resource_fallback.lua`（另跑 zhCN／zhTW），
+`lua tools/validate_class_icon_atlas.lua`、`lua tools/validate_addon_window.lua`。
+
+### 共同故障路径与游戏内复测
+
+三份 Forever 崩溃日志的异常位置虽然随构建变化，但崩溃现场指令字节相同：
+`48 8B 0A 48 89 08 C3`，即 `mov rcx, [rdx]; mov [rax], rcx; ret`。
+这段代码从 RDX 指向的位置读取 8 字节并复制到 RAX 指向的位置，现场在第一条读取指令失败。
+三次 R8、RBP 都是 8，异常线程均记录 Async Reading，LuaErrors 均为 0。
+
+| 构建／资源 | RDX（源指针） | 记录 |
+| --- | --- | --- |
+| 70862／134400 | `0x430F3FFF94920841` | 11 月 10 日问号图标 |
+| 70938／133785 | `0x430F3FFF94B20821` | 11 月 18 日两次金币图标 |
+
+两个源指针均非有效的 x64 canonical 地址，且高位模式相同。结合相同指令及异步读取现场，
+支持两者经过相同类型的原生故障路径；它不是 Lua 异常，Lua pcall 无法拦截这种进程崩溃。
+这些证据不能进一步证明坏指针由哪个上游函数产生，也不能区分 CASC 数据异常、
+格式处理错误或客户端内存破坏。不能把全部原生纹理或相同扩展名的图片判定为有问题。
+
+直接对磁盘 Wow.exe 做静态反汇编时，对应地址的字节与崩溃现场代码不一致，
+因此本次指令结论仅以崩溃日志记录的内存字节为依据，不使用磁盘指令推断调用者。
+
+2026-11-18，用户应用上述补丁后游戏内复测，反馈“验证了 不再崩溃”。
+据此确认“点击未适配插件”的已知触发场景已解决；本体采用本地安全素材与精确资源替代，
+继续保留其他插件图标、启停与设置行为。该结果不代表修复了客户端原生读取器，
+也不保证独立插件主动读取同一资源时不发生同类问题。

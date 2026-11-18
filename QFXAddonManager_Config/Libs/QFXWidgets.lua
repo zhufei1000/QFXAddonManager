@@ -254,6 +254,15 @@ end
 
 -- AddonButtons is the project's middle-column factory: every tile uses power.
 -- Ordinary settings rows keep the existing rectangular toggle renderer.
+local function FallbackIcon()
+    local W = rawget(_G, "QFXWidgets")
+    if W and W.DefaultAddonIcon then return W.DefaultAddonIcon end
+    if C_AddOns and C_AddOns.DoesAddOnExist and C_AddOns.DoesAddOnExist("QFXAddonManager") then
+        return [[Interface\AddOns\QFXAddonManager\Media\addon-question-mark.blp]]
+    end
+    return [[Interface\Icons\INV_Misc_Gear_01]]
+end
+
 local function ApplyIconMetadata(texture, data)
     -- SetAtlas owns its atlas-sheet coordinates. Reset pooled state BEFORE
     -- applying the atlas; resetting to 0..1 afterward samples the entire sheet.
@@ -261,7 +270,7 @@ local function ApplyIconMetadata(texture, data)
     local applied = false
     if data.atlas and texture.SetAtlas then applied = pcall(texture.SetAtlas, texture, data.atlas, false) end
     if not applied then
-        texture:SetTexture(data.texture or "Interface\\Icons\\INV_Misc_QuestionMark", "CLAMP", "CLAMP", "TRILINEAR")
+        texture:SetTexture(data.texture or FallbackIcon(), "CLAMP", "CLAMP", "TRILINEAR")
         if data.coords then texture:SetTexCoord(data.coords[1], data.coords[2], data.coords[3], data.coords[4]) end
     end
     texture:SetVertexColor(1, 1, 1, 1)
@@ -2745,7 +2754,8 @@ local function InstallVariableListRows(W)
 end
 
 local function InstallCheckGridAtlas(W)
-    if (tonumber(W.CHECKGRID_ATLAS_REVISION) or 0) >= 1 or type(W.CheckGrid) ~= "function" then return end
+    if ((tonumber(W.CHECKGRID_ATLAS_REVISION) or 0) >= 1 and W.CHECKGRID_SAFE_FALLBACK_REVISION == 1)
+        or type(W.CheckGrid) ~= "function" then return end
     local checkGrid = W.CheckGrid
     function W:CheckGrid(parent, y, columns, entries, opts)
         local hasAtlas = false
@@ -2755,7 +2765,7 @@ local function InstallCheckGridAtlas(W)
         for index, entry in ipairs(entries) do
             local copy = {}
             for key, value in pairs(entry) do copy[key] = value end
-            if copy.iconAtlas and not copy.icon then copy.icon = "Interface\\Icons\\INV_Misc_QuestionMark" end
+            if copy.iconAtlas and not copy.icon then copy.icon = FallbackIcon() end
             copies[index] = copy
         end
         local grid, height = checkGrid(self, parent, y, columns, copies, opts)
@@ -2776,6 +2786,22 @@ local function InstallCheckGridAtlas(W)
         return grid, height
     end
     W.CHECKGRID_ATLAS_REVISION = 1
+    W.CHECKGRID_SAFE_FALLBACK_REVISION = 1
+end
+
+local function InstallSpellIconFallback(W)
+    if W.SPELLICON_SAFE_FALLBACK_REVISION == 1 or type(W.SpellIconItems) ~= "function" then return end
+    local spellIconItems = W.SpellIconItems
+    function W:SpellIconItems(list)
+        local items = spellIconItems(self, list)
+        for _, entry in ipairs(items) do
+            if entry.icon == 134400 or entry.icon == "Interface\\ICONS\\INV_Misc_QuestionMark" then
+                entry.icon = FallbackIcon()
+            end
+        end
+        return items
+    end
+    W.SPELLICON_SAFE_FALLBACK_REVISION = 1
 end
 
 local function InstallKeybindCapture(W)
@@ -3019,6 +3045,7 @@ if type(F) == "table" and (tonumber(F.VERSION) or 0) >= VERSION then
     InstallCloseButton(F)
     InstallVariableListRows(F)
     InstallCheckGridAtlas(F)
+    InstallSpellIconFallback(F)
     InstallKeybindCapture(F)
     InstallAddonWindow(F)
     if ns then ns.QFXWidgets = F end
@@ -7420,7 +7447,7 @@ function F:SpellIconItems(list)
         local label = type(e) == "table" and (e.label or tostring(id)) or tostring(id)
         local icon = (C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(id))
             or (GetSpellTexture and GetSpellTexture(id))
-            or "Interface\\ICONS\\INV_Misc_QuestionMark"
+            or FallbackIcon()
         out[i] = { key = id, label = label, icon = icon }
     end
     return out
@@ -7765,6 +7792,7 @@ InstallCloseButton(F)
 InstallVariableListRows(F)
 
 InstallCheckGridAtlas(F)
+InstallSpellIconFallback(F)
 
 InstallKeybindCapture(F)
 

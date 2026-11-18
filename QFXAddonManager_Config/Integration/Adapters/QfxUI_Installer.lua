@@ -348,7 +348,7 @@ local function Build(page)
             local k = Kind(kind)
             local tone = S[k.tone] or S.text
             local current = GetSpecialization and GetSpecialization() or nil
-            row._icon:SetTexture(spec.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+            row._icon:SetTexture(spec.icon or [[Interface\AddOns\QFXAddonManager\Media\addon-question-mark.blp]])
             row._icon:SetDesaturated(kind == "none")
             row._name:SetText(spec.name or "")
             if spec.index == current then
