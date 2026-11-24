@@ -392,6 +392,60 @@ data[1].children = nil
 AM.Cache.addons.AddonChild = nil
 UI.RefreshList()
 assert(pairRow._leftSlot.region._icon.texture == defaultIcon, "Removing child fallback must restore the question mark")
+do
+    local item, slot = data[1], pairRow._leftSlot.region
+    local original = { type = item.type, title = item.title, titleEN = item.titleEN, notes = item.notes }
+    local localFile = [[Interface\AddOns\AddonChild\Art\Logo.blp]]
+    local child = { name = "AddonChild", title = "|T654321:16|tChild", icon = 654321, iconAtlas = "UnverifiedAtlas" }
+    item.type, item.adapted, item.children = "singleBundle", false, { child }
+    item.title, item.titleEN = "|T654321:16|tParent", "|A:UnverifiedAtlas:16:16|aParent"
+    item.notes = "|T654321:16|tNotes"
+    item.iconAtlas = "UnverifiedAtlas"
+    local setTexture, setAtlas = methods.SetTexture, methods.SetAtlas
+    local atlasRequests = 0
+    methods.SetTexture = function(self, path, ...)
+        assert(path ~= 654321 and path ~= [[Interface\Icons\MissingNative]]
+            and path ~= [[Interface\AddOns\Test\..\..\Icons\MissingNative]], "Native or escaping path reached SetTexture")
+        return setTexture(self, path, ...)
+    end
+    methods.SetAtlas = function(self, atlas, ...)
+        if atlas == "UnverifiedAtlas" then atlasRequests = atlasRequests + 1 end
+        return setAtlas(self, atlas, ...)
+    end
+    for _, icon in ipairs({ "654321", [[Interface\Icons\MissingNative]], [[Interface\AddOns\Test\..\..\Icons\MissingNative]] }) do
+        item.icon = icon
+        UI.RefreshList()
+        assert(slot._icon.texture == defaultIcon and not slot._icon.atlas, "Unsafe sources must use bundled fallback")
+    end
+    assert(slot._label:GetText() == "Parent", "Unadapted titles must not render inline native icons")
+    local originalLaunch = UI.OpenSelectedNativeOptions
+    assert(AM.GetOpenOptionsOnCardClick(), "Fixture must have auto-open enabled")
+    UI.OpenSelectedNativeOptions = function() error("Unadapted card selection must not open external settings") end
+    local originalNote, foundNote = W.Note, false
+    W.Note = function(self, parent, y, note, ...)
+        assert(note ~= item.notes, "Unadapted notes must not render inline native icons")
+        if note == "Notes" then foundNote = true end
+        return originalNote(self, parent, y, note, ...)
+    end
+    slot:Click()
+    assert(AM.selected == item and foundNote, "Unadapted card must still show its details")
+    local detail = UI.detailPanel.childCardsAPI:GetRow(1).tile._leftRegion
+    assert(detail._icon.texture == defaultIcon and detail._label:GetText() == "Child", "Detail child must also use safe artwork")
+    child.icon = "Interface/AddOns/AddonChild/Art/Logo.blp"
+    UI.RefreshList(); UI.RefreshDetail()
+    assert(slot._icon.texture == localFile and detail._icon.texture == localFile, "Keep a real addon file even when an atlas is also advertised")
+    item.icon = [[Interface\AddOns\Addon1\Logo]]
+    UI.RefreshList()
+    assert(slot._icon.texture == item.icon, "Allow extensionless TOC paths in the addon directory")
+    assert(atlasRequests == 0, "Unadapted TOC atlas must never reach SetAtlas, even transiently")
+    assert(UI.WithoutInlineIcons("|cffffffff|T654321:16|tText|r ||Text") == "|cffffffffText|r ||Text",
+        "Strip inline images without changing text colors or literal pipes")
+    UI.OpenSelectedNativeOptions, W.Note = originalLaunch, originalNote
+    methods.SetTexture, methods.SetAtlas = setTexture, setAtlas
+    item.type, item.title, item.titleEN, item.notes = original.type, original.title, original.titleEN, original.notes
+    item.adapted, item.icon, item.iconAtlas, item.children = nil, nil, nil, nil
+    AM.SelectItem(nil); UI.RefreshDetail(); UI.RefreshList()
+end
 local toolbox = AM.Toolbox
 AM.Toolbox = { IsEnabled = function() return true end }
 data[1].type, data[1].key = "toolboxFeature", "general"

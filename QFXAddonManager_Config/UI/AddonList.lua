@@ -51,23 +51,29 @@ local function ItemTooltip(slot)
     if not item.protected and not item.missing and item.type ~= "single" then
         lines[#lines + 1] = QFXAM.GetAddonMode() == "global" and L.MODE_POWER_GLOBAL_TIP or L.MODE_POWER_TEMP_TIP
     end
-    return table.concat(lines, "\n")
+    local text = table.concat(lines, "\n")
+    return UI.IsUnadaptedCard(item) and UI.WithoutInlineIcons(text) or text
 end
 
-local function InfoIcon(info)
+local function InfoIcon(info, localIconsOnly)
     if not info then return nil end
+    if localIconsOnly then
+        local icon = UI.GetLocalAddonIcon(info.icon)
+        if icon then return icon, nil, info.iconCoords end
+        return nil
+    end
     if info.icon or info.iconAtlas then return info.icon, info.iconAtlas, info.iconCoords end
     return nil
 end
 
 -- 主插件及其适配配置都没有图标时，回退使用子插件的首个可用图标。
-local function ChildIcon(item)
+local function ChildIcon(item, localIconsOnly)
     for _, child in ipairs(item.children or {}) do
         local info = child
         if type(child) == "string" then
             info = QFXAM.Cache.addons[child] or QFXAM.Cache.addons[string.lower(child)]
         end
-        local icon, atlas, coords = InfoIcon(info)
+        local icon, atlas, coords = InfoIcon(info, localIconsOnly)
         if icon or atlas then return icon, atlas, coords end
     end
     return nil
@@ -89,6 +95,7 @@ local function MakeSlot()
             local item = slot.item
             if not item then return "" end
             local sub = item.titleEN
+            if UI.IsUnadaptedCard(item) then sub = UI.WithoutInlineIcons(sub) end
             if not sub or sub == "" then return "" end
             local main = UI.GetItemTitle(item)
             if sub == main then return "" end
@@ -100,6 +107,13 @@ local function MakeSlot()
             local primary = item.primary or item.name
             local info = item.source or (primary and QFXAM.Cache.addons[primary]) or item
             local config = item.moduleData or item.groupData or {}
+            if UI.IsUnadaptedCard(item) then
+                local icon, _, coords = InfoIcon(info, true)
+                if not icon then icon, _, coords = InfoIcon(config, true) end
+                if not icon and item ~= info then icon, _, coords = InfoIcon(item, true) end
+                if not icon then icon, _, coords = ChildIcon(item, true) end
+                return icon or UI.DEFAULT_ADDON_ICON, nil, coords
+            end
             local icon = info.icon or config.icon or item.icon
             local atlas = info.iconAtlas or config.iconAtlas or item.iconAtlas
             local coords = info.iconCoords or config.iconCoords or item.iconCoords
@@ -161,7 +175,7 @@ local function MakeSlot()
             UI.externalAutoKey = nil
             UI.RefreshList()
             UI.RefreshDetail()
-            if QFXAM.GetOpenOptionsOnCardClick() and UI.OpenSelectedNativeOptions then
+            if not UI.IsUnadaptedCard(slot.item) and QFXAM.GetOpenOptionsOnCardClick() and UI.OpenSelectedNativeOptions then
                 UI.OpenSelectedNativeOptions(slot.item)
             end
         end,

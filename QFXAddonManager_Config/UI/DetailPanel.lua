@@ -13,8 +13,9 @@ end
 
 local function GetItemNote(item, primaryInfo)
     local description = item and QFXAM.Registry.GetDescription(GetPrimaryName(item))
-    if description and description ~= "" then return description end
     local note = item and (item.notes or (primaryInfo and primaryInfo.notes)) or ""
+    if description and description ~= "" then note = description end
+    if UI.IsUnadaptedCard(item) then note = UI.WithoutInlineIcons(note) end
     if note and note ~= "" then return note end
     if item and item.type == "module" then
         return string.format("%s · %d", L.MODULE or "Module", item.installed or 0)
@@ -26,7 +27,7 @@ local function GetItemNote(item, primaryInfo)
         end
         return item.name or ""
     elseif item and item.type == "single" then
-        return item.notes or ""
+        return note
     elseif item and item.type == "singleAddon" then
         return item.name or ""
     end
@@ -77,10 +78,6 @@ local function GetItemChildren(item)
     return children
 end
 
-local function ChildTitle(info)
-    return UI.GetItemTitle(info)
-end
-
 local function ChildStatus(info)
     return (info.enabled and L.ENABLED or L.DISABLED) .. " · " .. (info.loaded and L.LOADED or L.NOT_LOADED)
 end
@@ -98,11 +95,16 @@ local function AppendChildCards(panel, y, W)
                 local function Parent() return GetPrimaryName(QFXAM.GetSelectedItem()) end
                 row.tile = W:AddonButtons(row, 0, {
                     type = "addonToggle", text = "", motion = true,
-                    getText = function() return Current() and ChildTitle(Current()) or "" end,
+                    getText = function() return UI.GetItemTitle(Current(), panel.detailLocalIconsOnly) end,
                     getSubText = function() return Current() and ChildStatus(Current()) or "" end,
                     getIcon = function()
                         local info = Current()
                         if not info then return nil end
+                        if panel.detailLocalIconsOnly then
+                            local icon = UI.GetLocalAddonIcon(info.icon)
+                            if icon then return icon, nil, info.iconCoords end
+                            return UI.DEFAULT_ADDON_ICON
+                        end
                         if info.icon or info.iconAtlas then return info.icon, info.iconAtlas, info.iconCoords end
                         return UI.DEFAULT_ADDON_ICON
                     end,
@@ -116,7 +118,9 @@ local function AppendChildCards(panel, y, W)
                     disabled = function() return not Current() or not panel.childPowerTargets[Current().name] end,
                     tooltip = function()
                         local info = Current()
-                        return info and table.concat({ info.name, ChildStatus(info), info.version or "", info.notes or "" }, "\n") or ""
+                        if not info then return "" end
+                        local text = table.concat({ info.name, ChildStatus(info), info.version or "", info.notes or "" }, "\n")
+                        return panel.detailLocalIconsOnly and UI.WithoutInlineIcons(text) or text
                     end,
                 }, nil, { height = 40, columns = 1 })
                 row.tile:SetColumns(1)
@@ -173,9 +177,11 @@ local function BuildFactoryDetail(panel, item, W)
     local presetStatus = presetName and QFXAM.Presets and QFXAM.Presets.GetStatus(presetName) or nil
     local hasPreset = not (item and item.missing) and presetStatus ~= nil and presetStatus.hasContent == true
     panel.detailChildren = GetItemChildren(item)
+    local localIconsOnly = UI.IsUnadaptedCard(item)
+    panel.detailLocalIconsOnly = localIconsOnly
     local snapshot = item and {
         item.type or false, item.key or item.name or false, primary or false,
-        item.protected and true or false,
+        item.protected and true or false, localIconsOnly,
         openOptions or false, canEditCommand or false,
         GetItemNote(item, info), item.category or false,
         (info and info.version) or item.version or false,
@@ -186,7 +192,7 @@ local function BuildFactoryDetail(panel, item, W)
         item.companionNote or false, item.companionURL or false,
     } or { false }
     for _, child in ipairs(panel.detailChildren) do
-        for _, value in ipairs({ child.name, ChildTitle(child), child.version or false, child.notes or false,
+        for _, value in ipairs({ child.name, UI.GetItemTitle(child, localIconsOnly), child.version or false, child.notes or false,
             child.icon or false, child.iconAtlas or false, child.iconCoords or false }) do
             snapshot[#snapshot + 1] = value
         end
@@ -294,7 +300,8 @@ local function BuildFactoryDetail(panel, item, W)
                     if not (name and QFXAM.Presets and QFXAM.Presets.CanApply(name)) then return end
                     W:Confirm({
                         title = L.PRESET_RESTORE or "Restore Defaults",
-                        text = string.format(L.PRESET_RESTORE_CONFIRM or "Replace %s settings with the preset values?", cur.title or name),
+                        text = string.format(L.PRESET_RESTORE_CONFIRM or "Replace %s settings with the preset values?",
+                            localIconsOnly and UI.GetItemTitle(cur, true) or cur.title or name),
                         acceptText = L.PRESET_RESTORE or "Restore Defaults",
                         cancelText = L.CANCEL or "Cancel",
                         danger = true,
@@ -326,7 +333,7 @@ local function BuildFactoryDetail(panel, item, W)
             if openOptions or canEditCommand then
                 UI.BindOpenOptionsAttention(row, function()
                     return openOptions or QFXAM.GetAddonOptionsCommand(openName)
-                end)
+                end, localIconsOnly)
             end
             y = y - h
         end
@@ -383,6 +390,11 @@ local function BuildFactoryDetail(panel, item, W)
             and string.format("%s：%d    %s：%d", L.TOTAL or "Total", item.installed or 0, L.LOADED or "Loaded", item.loadedCount or 0)
             or ((sourceInfo and sourceInfo.version) or item.version or "-")
         local authorText = (item.type == "single") and "-" or ((sourceInfo and sourceInfo.author) or item.author or "-")
+        if localIconsOnly then
+            fileText = UI.WithoutInlineIcons(fileText)
+            versionText = UI.WithoutInlineIcons(versionText)
+            authorText = UI.WithoutInlineIcons(authorText)
+        end
 
         if item.missing then
             row, h = W:StatusRow(content, y, { label = L.INSTALLATION_STATUS,
@@ -480,6 +492,7 @@ function UI.CopyDetailName()
     elseif not text or text == "" then
         text = GetPrimaryName(item) or item.name
     end
+    if UI.IsUnadaptedCard(item) then text = UI.WithoutInlineIcons(text) end
     if not text or text == "" then return end
     local ok, mode = UI.CopyText(text)
     if ok and mode == "clipboard" and panel.copyButton and panel.copyButton._icon then

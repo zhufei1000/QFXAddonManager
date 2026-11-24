@@ -7,14 +7,46 @@ UI.MEDIA_ICON = UI.MEDIA_PATH .. "addon-fei.blp"
 -- Use a bundled texture because the client crashed while reading the stock icon.
 UI.DEFAULT_ADDON_ICON = UI.MEDIA_PATH .. "addon-question-mark.blp"
 
+function UI.IsUnadaptedCard(item)
+    return item ~= nil and (item.adapted == false or item.type == "singleBundle")
+end
+
+-- Only loose addon artwork is allowed for unadapted cards. A resource ID,
+-- Interface/Icons path or atlas could ask the client to read a native asset.
+function UI.GetLocalAddonIcon(icon)
+    if type(icon) ~= "string" then return nil end
+    local normalized = icon:gsub("\\", "/")
+    local relative = normalized:lower():match("^interface/addons/([^/]+/.+)$")
+    if not relative or relative:find('[%c:|<>"?*]') or relative:find("//", 1, true)
+        or relative:sub(-1) == "/" then return nil end
+    for component in relative:gmatch("[^/]+") do
+        if component:find("[%. ]$") then return nil end
+    end
+    return (normalized:gsub("/", "\\"))
+end
+
+-- Titles and notes can ask the font renderer to load images too. Keep the
+-- text and color codes, but drop inline textures and atlases for these cards.
+function UI.WithoutInlineIcons(text)
+    if type(text) ~= "string" or not text:find("|", 1, true) then return text end
+    local function strip(pipes, tag)
+        return #pipes % 2 == 0 and pipes .. tag or pipes:sub(2)
+    end
+    text = text:gsub("(|+)(T[^|]*|t)", strip):gsub("(|+)(A[^|]*|a)", strip)
+    return (text:gsub("(|+)([TA])", function(pipes, tag)
+        return pipes .. (#pipes % 2 == 1 and "|" or "") .. tag
+    end))
+end
+
 -- Built-in tool titles are already localized by their own dictionary.
-function UI.GetItemTitle(item)
+function UI.GetItemTitle(item, localIconsOnly)
     if not item then return "" end
     if item.type == "toolboxFeature" then return item.title or item.name or "" end
-    if QFXAM.GetLocale() == "enUS" then
-        return item.titleEN or item.title or item.name or ""
-    end
-    return item.titleZH or item.title or item.name or ""
+    local title
+    if QFXAM.GetLocale() == "enUS" then title = item.titleEN else title = item.titleZH end
+    title = title or item.title or item.name or ""
+    if localIconsOnly or UI.IsUnadaptedCard(item) then title = UI.WithoutInlineIcons(title) end
+    return title ~= "" and title or item.name or ""
 end
 
 function UI.GetWidgets()
@@ -94,10 +126,10 @@ function UI.SetButtonAttention(button, active, key)
     end
 end
 
-function UI.BindOpenOptionsAttention(row, available)
+function UI.BindOpenOptionsAttention(row, available, manualOnly)
     local button, W = row._leftRegion._dimTargets[1], UI.GetWidgets()
     local function Refresh()
-        UI.SetButtonAttention(button, button:IsVisible() and not QFXAM.GetOpenOptionsOnCardClick()
+        UI.SetButtonAttention(button, button:IsVisible() and (manualOnly or not QFXAM.GetOpenOptionsOnCardClick())
             and not W:InCombatLocked() and (not available or available()), OPEN_OPTIONS_GLOW_KEY)
     end
     button:HookScript("OnShow", Refresh)
